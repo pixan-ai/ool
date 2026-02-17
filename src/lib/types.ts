@@ -1,5 +1,7 @@
 export type NoteColor = 'stone' | 'bamboo' | 'sakura' | 'sumi' | 'kincha' | 'sora' | 'fuji';
 
+export type SortMode = 'date' | 'title' | 'color';
+
 export interface CanvasBlock {
   id: string;
   x: number; // percentage 0-100
@@ -14,6 +16,7 @@ export interface Note {
   color: NoteColor;
   mode: 'markdown' | 'canvas';
   blocks?: CanvasBlock[];
+  pinned?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -27,3 +30,15 @@ export const NOTE_COLORS: Record<NoteColor, { label: string; bg: string; accent:
   sora:   { label: '空',   bg: 'rgba(125,154,184,0.06)', accent: '#7d9ab8', dot: '#7d9ab8' },
   fuji:   { label: '藤',   bg: 'rgba(154,125,184,0.06)', accent: '#9a7db8', dot: '#9a7db8' },
 };
+
+export const NOTE_COLORS_LIGHT: Record<NoteColor, { bg: string; dot: string }> = {
+  stone:  { bg: 'rgba(140,140,135,0.06)', dot: '#7a7874' },
+  bamboo: { bg: 'rgba(90,130,85,0.08)',   dot: '#5a8a50' },
+  sakura: { bg: 'rgba(180,100,120,0.08)', dot: '#b06880' },
+  sumi:   { bg: 'rgba(60,60,65,0.06)',    dot: '#5a5a60' },
+  kincha: { bg: 'rgba(160,130,90,0.08)',  dot: '#9a8060' },
+  sora:   { bg: 'rgba(90,130,170,0.08)',  dot: '#5a8ab0' },
+  fuji:   { bg: 'rgba(130,90,160,0.08)',  dot: '#8a60b0' },
+};
+
+export type AiAction = 'continue' | 'improve' | 'summarize' | 'brainstorm' | 'haiku' | 'translate' | 'custom';

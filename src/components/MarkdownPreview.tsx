@@ -21,7 +21,7 @@ export default function MarkdownPreview({ content }: Props) {
   }
 
   return (
-    <article className="prose prose-invert prose-sm md:prose-base max-w-none animate-fade-in">
+    <article className="prose prose-sm md:prose-base max-w-none animate-fade-in">
       <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
         {content}
       </ReactMarkdown>

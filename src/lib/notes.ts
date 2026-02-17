@@ -1,4 +1,4 @@
-import { Note, NoteColor, CanvasBlock } from "./types";
+import { Note, NoteColor, CanvasBlock, SortMode } from "./types";
 
 const STORAGE_KEY = "ool-notes";
 
@@ -18,6 +18,7 @@ export function loadNotes(): Note[] {
       ...n,
       color: n.color || 'stone',
       mode: n.mode || 'markdown',
+      pinned: n.pinned || false,
     }));
   } catch {
     return [];
@@ -33,6 +34,21 @@ export function createNote(color: NoteColor = 'stone'): Note {
   const note: Note = {
     id: generateId(),
     content: "",
+    color,
+    mode: 'markdown',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  notes.unshift(note);
+  saveNotes(notes);
+  return note;
+}
+
+export function importNote(content: string, color: NoteColor = 'stone'): Note {
+  const notes = loadNotes();
+  const note: Note = {
+    id: generateId(),
+    content,
     color,
     mode: 'markdown',
     createdAt: Date.now(),
@@ -78,6 +94,16 @@ export function updateNoteBlocks(id: string, blocks: CanvasBlock[]): Note | null
   const index = notes.findIndex((n) => n.id === id);
   if (index === -1) return null;
   notes[index].blocks = blocks;
+  notes[index].updatedAt = Date.now();
+  saveNotes(notes);
+  return notes[index];
+}
+
+export function togglePin(id: string): Note | null {
+  const notes = loadNotes();
+  const index = notes.findIndex((n) => n.id === id);
+  if (index === -1) return null;
+  notes[index].pinned = !notes[index].pinned;
   notes[index].updatedAt = Date.now();
   saveNotes(notes);
   return notes[index];
@@ -134,6 +160,23 @@ export function getCharCount(content: string): number {
   return content.length;
 }
 
+export function getReadingTime(wordCount: number): string {
+  const minutes = Math.max(1, Math.ceil(wordCount / 200));
+  return `${minutes} min read`;
+}
+
+export function getHeadings(content: string): { level: number; text: string; line: number }[] {
+  const lines = content.split("\n");
+  const headings: { level: number; text: string; line: number }[] = [];
+  lines.forEach((line, i) => {
+    const match = line.match(/^(#{1,6})\s+(.+)/);
+    if (match) {
+      headings.push({ level: match[1].length, text: match[2].trim(), line: i });
+    }
+  });
+  return headings;
+}
+
 export function searchNotes(notes: Note[], query: string): Note[] {
   if (!query.trim()) return notes;
   const q = query.toLowerCase();
@@ -142,4 +185,24 @@ export function searchNotes(notes: Note[], query: string): Note[] {
     if (n.blocks?.some(b => b.content.toLowerCase().includes(q))) return true;
     return false;
   });
+}
+
+export function sortNotes(notes: Note[], mode: SortMode): Note[] {
+  const sorted = [...notes];
+  switch (mode) {
+    case 'date':
+      sorted.sort((a, b) => b.updatedAt - a.updatedAt);
+      break;
+    case 'title':
+      sorted.sort((a, b) => getTitle(a).localeCompare(getTitle(b)));
+      break;
+    case 'color':
+      const colorOrder = ['stone', 'bamboo', 'sakura', 'sumi', 'kincha', 'sora', 'fuji'];
+      sorted.sort((a, b) => colorOrder.indexOf(a.color) - colorOrder.indexOf(b.color));
+      break;
+  }
+  // Pinned notes always on top
+  const pinned = sorted.filter(n => n.pinned);
+  const unpinned = sorted.filter(n => !n.pinned);
+  return [...pinned, ...unpinned];
 }
