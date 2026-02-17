@@ -358,7 +358,7 @@ export default function Editor({
   if (presentationMode && !isCanvas) {
     return (
       <div className="presentation-mode" key={`pres-${noteKey}`}>
-        <div className="flex items-center justify-between w-full px-8 py-4">
+        <div className="flex items-center justify-between w-full px-8 md:px-16 py-4">
           <button onClick={() => setPresentationMode(false)} className="toolbar-btn" title="Exit (Esc)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -366,7 +366,7 @@ export default function Editor({
           </button>
           <span className="text-[11px] text-[var(--text-tertiary)]">{readingTime}</span>
         </div>
-        <div className="flex-1 px-8 md:px-16 py-8 max-w-4xl mx-auto w-full" style={{ background: noteColor.bg }}>
+        <div className="flex-1 px-8 md:px-20 lg:px-32 py-8 max-w-5xl mx-auto w-full" style={{ background: noteColor.bg }}>
           <MarkdownPreview content={note.content} />
         </div>
       </div>
@@ -378,7 +378,7 @@ export default function Editor({
     return (
       <div className="focus-mode" key={`focus-${noteKey}`}>
         <div className="ambient-circle" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
-        <div className="flex items-center justify-between w-full max-w-3xl px-8 py-4">
+        <div className="flex items-center justify-between w-full max-w-3xl px-8 md:px-12 py-4">
           <button onClick={() => setFocusMode(false)} className="toolbar-btn" title="Exit focus mode (Esc)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -389,7 +389,7 @@ export default function Editor({
             <span className="text-[11px] text-[var(--text-tertiary)] tabular-nums">{wordCount} words</span>
           </div>
         </div>
-        <div className="flex-1 w-full max-w-3xl px-8 overflow-hidden">
+        <div className="flex-1 w-full max-w-3xl px-8 md:px-12 overflow-hidden">
           <textarea
             ref={focusTextareaRef}
             value={note.content}
@@ -418,7 +418,7 @@ export default function Editor({
   return (
     <div className="flex flex-col h-full relative" key={`editor-${noteKey}`}>
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-4 py-1.5 border-b border-[var(--border-subtle)]" style={{ height: 'var(--toolbar-height)' }}>
+      <div className="flex items-center gap-1 px-5 md:px-8 py-1.5 border-b border-[var(--border-subtle)]" style={{ height: 'var(--toolbar-height)' }}>
         {/* Back button (mobile) */}
         <button onClick={onBack} className="toolbar-btn md:hidden" aria-label="Back to notes">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -604,7 +604,7 @@ export default function Editor({
                 onScroll={handleEditorScroll}
                 onSelect={handleSelectionChange}
                 placeholder="Start writing..."
-                className={`editor-textarea w-full h-full p-6 md:p-10 ${typewriterMode ? 'typewriter-mode' : ''}`}
+                className={`editor-textarea w-full h-full p-8 md:p-14 lg:p-20 ${typewriterMode ? 'typewriter-mode' : ''}`}
                 spellCheck={false}
               />
             </div>
@@ -614,7 +614,7 @@ export default function Editor({
             {showPreview && (
               <div
                 ref={previewRef}
-                className="hidden md:block w-1/2 h-full overflow-y-auto p-6 md:p-10"
+                className="hidden md:block w-1/2 h-full overflow-y-auto p-8 md:p-14 lg:p-20"
                 style={{ background: NOTE_COLORS[note.color].bg }}
               >
                 <MarkdownPreview content={note.content} />
@@ -631,11 +631,11 @@ export default function Editor({
                   onPaste={handlePaste}
                   onSelect={handleSelectionChange}
                   placeholder="Start writing..."
-                  className={`editor-textarea w-full h-full p-6 ${typewriterMode ? 'typewriter-mode' : ''}`}
+                  className={`editor-textarea w-full h-full p-6 sm:p-8 ${typewriterMode ? 'typewriter-mode' : ''}`}
                   spellCheck={false}
                 />
               ) : (
-                <div className="h-full overflow-y-auto p-6" style={{ background: NOTE_COLORS[note.color].bg }}>
+                <div className="h-full overflow-y-auto p-6 sm:p-8" style={{ background: NOTE_COLORS[note.color].bg }}>
                   <MarkdownPreview content={note.content} />
                 </div>
               )}
@@ -646,7 +646,7 @@ export default function Editor({
 
       {/* Mobile toggle bar (markdown only) */}
       {!isCanvas && (
-        <div className="flex md:hidden items-center justify-between px-4 py-2 border-t border-[var(--border-subtle)]">
+        <div className="flex md:hidden items-center justify-between px-5 py-2.5 border-t border-[var(--border-subtle)]">
           <div className="flex items-center gap-1 bg-[var(--bg-secondary)] rounded-lg p-0.5">
             <button
               onClick={() => setMobileTab("write")}

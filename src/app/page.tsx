@@ -270,32 +270,106 @@ export default function Home() {
             externalAiToggle={aiFromPalette}
           />
         ) : (
-          <div className="flex h-full items-center justify-center animate-fade-in">
-            <div className="text-center">
-              <div className="enso mx-auto mb-6" style={{ width: 64, height: 64, borderWidth: 2, opacity: 0.15 }} />
-              <p className="zen-quote mb-6 max-w-xs mx-auto">
-                The quieter you become,<br />
-                the more you can hear.
-              </p>
-              <button
-                onClick={handleNew}
-                className="text-[var(--accent)] text-sm hover:text-[var(--accent-hover)] transition-colors"
-              >
-                Create a note
-              </button>
-              <div className="mt-8 space-y-2">
-                <div className="flex items-center gap-3 justify-center">
-                  <span className="kbd">Ctrl+N</span>
-                  <span className="text-[10px] text-[var(--text-tertiary)]">new note</span>
+          <div className="h-full overflow-y-auto">
+            <div className="max-w-2xl mx-auto px-8 md:px-16 py-12 md:py-20 animate-fade-in">
+              {/* Hero */}
+              <div className="text-center mb-16">
+                <div className="enso mx-auto mb-6" style={{ width: 56, height: 56, borderWidth: 2, opacity: 0.2 }} />
+                <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mb-3" style={{ color: 'var(--accent)' }}>
+                  ool
+                </h1>
+                <p className="zen-quote text-base max-w-sm mx-auto">
+                  A mindful space for writing,<br />
+                  thinking, and creating.
+                </p>
+              </div>
+
+              {/* Quick start */}
+              <div className="mb-12">
+                <h2 className="text-xs uppercase tracking-widest text-[var(--text-tertiary)] font-medium mb-4">Quick start</h2>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-4 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
+                    <span className="text-lg mt-0.5" style={{ color: 'var(--accent)' }}>1</span>
+                    <div>
+                      <p className="text-sm font-medium mb-0.5">Create a note</p>
+                      <p className="text-xs text-[var(--text-tertiary)]">Click the <strong>+</strong> button in the sidebar or press <span className="kbd">Ctrl+N</span></p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
+                    <span className="text-lg mt-0.5" style={{ color: 'var(--accent)' }}>2</span>
+                    <div>
+                      <p className="text-sm font-medium mb-0.5">Write in Markdown</p>
+                      <p className="text-xs text-[var(--text-tertiary)]">Full markdown support with live preview. Use headings, lists, code blocks, tables, and more.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
+                    <span className="text-lg mt-0.5" style={{ color: 'var(--accent)' }}>3</span>
+                    <div>
+                      <p className="text-sm font-medium mb-0.5">Everything saves automatically</p>
+                      <p className="text-xs text-[var(--text-tertiary)]">Your notes are stored locally in your browser. No account needed.</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 justify-center">
-                  <span className="kbd">Ctrl+K</span>
-                  <span className="text-[10px] text-[var(--text-tertiary)]">command palette</span>
+              </div>
+
+              {/* Features grid */}
+              <div className="mb-12">
+                <h2 className="text-xs uppercase tracking-widest text-[var(--text-tertiary)] font-medium mb-4">Features</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { icon: "star", title: "AI Assistant", desc: "Koan helps you write, improve, summarize, and brainstorm" },
+                    { icon: "grid", title: "Canvas Mode", desc: "Free-form spatial writing. Double-click anywhere to add blocks" },
+                    { icon: "expand", title: "Focus Mode", desc: "Distraction-free writing with just your words" },
+                    { icon: "present", title: "Presentation", desc: "Beautiful read-only view of your notes" },
+                    { icon: "palette", title: "Note Colors", desc: "Color-code your notes for easy organization" },
+                    { icon: "import", title: "Import / Export", desc: "Drag & drop .md files or download your notes" },
+                    { icon: "search", title: "Search & Sort", desc: "Find notes quickly by title, content, or color" },
+                    { icon: "theme", title: "Light & Dark", desc: "Toggle themes from the sidebar footer" },
+                  ].map(f => (
+                    <div key={f.title} className="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+                      <p className="text-[11px] font-semibold mb-1">{f.title}</p>
+                      <p className="text-[10px] text-[var(--text-tertiary)] leading-relaxed">{f.desc}</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center gap-3 justify-center">
-                  <span className="kbd">Ctrl+J</span>
-                  <span className="text-[10px] text-[var(--text-tertiary)]">AI assistant</span>
+              </div>
+
+              {/* Keyboard shortcuts */}
+              <div className="mb-12">
+                <h2 className="text-xs uppercase tracking-widest text-[var(--text-tertiary)] font-medium mb-4">Keyboard shortcuts</h2>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                  {[
+                    ["Ctrl+N", "New note"],
+                    ["Ctrl+K", "Command palette"],
+                    ["Ctrl+J", "AI assistant"],
+                    ["Ctrl+P", "Toggle preview"],
+                    ["Ctrl+Shift+F", "Focus mode"],
+                    ["Ctrl+S", "Save indicator"],
+                    ["Ctrl+Shift+E", "Email note"],
+                    ["Esc", "Exit modes"],
+                  ].map(([key, label]) => (
+                    <div key={key} className="flex items-center justify-between py-1.5">
+                      <span className="text-[11px] text-[var(--text-secondary)]">{label}</span>
+                      <span className="kbd">{key}</span>
+                    </div>
+                  ))}
                 </div>
+              </div>
+
+              {/* CTA */}
+              <div className="text-center pb-8">
+                <button
+                  onClick={handleNew}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-xl bg-[var(--accent)] text-[var(--bg)] hover:opacity-90 transition-opacity"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Start writing
+                </button>
+                <p className="text-[10px] text-[var(--text-tertiary)] mt-3">
+                  or drop .md files into the sidebar to import
+                </p>
               </div>
             </div>
           </div>

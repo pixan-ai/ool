@@ -83,7 +83,7 @@ export default function NoteList({
       onDrop={handleDrop}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-subtle)]">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
         <div className="flex items-center gap-2.5">
           <div className="enso" />
           <h1 className="text-base font-semibold tracking-tight" style={{ color: 'var(--accent)' }}>ool</h1>
@@ -129,7 +129,7 @@ export default function NoteList({
       </div>
 
       {/* Search */}
-      <div className="px-4 py-2">
+      <div className="px-5 py-3">
         <div className="relative">
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
@@ -147,7 +147,7 @@ export default function NoteList({
       {/* Notes list */}
       <div className="flex-1 overflow-y-auto">
         {notes.length === 0 ? (
-          <div className="px-5 py-12 text-center animate-fade-in">
+          <div className="px-6 py-12 text-center animate-fade-in">
             <div className="enso mx-auto mb-4" style={{ width: 48, height: 48, borderWidth: 2, opacity: 0.2 }} />
             <p className="zen-quote mb-4">
               In the beginner&apos;s mind<br />
@@ -164,7 +164,7 @@ export default function NoteList({
             </p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="px-5 py-8 text-center text-[var(--text-tertiary)] text-sm">
+          <div className="px-6 py-8 text-center text-[var(--text-tertiary)] text-sm">
             No notes found
           </div>
         ) : (
@@ -173,7 +173,7 @@ export default function NoteList({
               <div
                 key={note.id}
                 onClick={() => onSelect(note.id)}
-                className={`note-item ${note.id === activeId ? 'active bg-[var(--bg-hover)]' : 'hover:bg-[var(--bg-secondary)]'} group flex items-start gap-3 px-5 py-2.5 cursor-pointer`}
+                className={`note-item ${note.id === activeId ? 'active bg-[var(--bg-hover)]' : 'hover:bg-[var(--bg-secondary)]'} group flex items-start gap-3 px-6 py-3 cursor-pointer`}
                 style={{ animationDelay: `${i * 30}ms` }}
               >
                 {/* Color dot + pin */}
@@ -251,7 +251,7 @@ export default function NoteList({
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-2.5 border-t border-[var(--border-subtle)] flex items-center justify-between">
+      <div className="px-6 py-3 border-t border-[var(--border-subtle)] flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-[10px] text-[var(--text-tertiary)]">
             {notes.length > 0 ? `${notes.length} note${notes.length !== 1 ? 's' : ''}` : ''}

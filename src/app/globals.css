@@ -177,6 +177,13 @@ html, body {
   letter-spacing: 0;
 }
 
+/* Constrain prose width on wide monitors for readability */
+@media (min-width: 1400px) {
+  .editor-textarea {
+    max-width: 900px;
+  }
+}
+
 .editor-textarea::placeholder {
   color: var(--text-tertiary);
   font-style: italic;
@@ -604,10 +611,10 @@ button, a, input {
 .ai-panel {
   position: fixed;
   z-index: 50;
-  bottom: 16px;
-  right: 16px;
+  bottom: 24px;
+  right: 24px;
   width: 380px;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100vw - 48px);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 16px;
