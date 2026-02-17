@@ -1,7 +1,20 @@
-import { google } from "@ai-sdk/google";
-import { streamText } from "ai";
+import { createGateway, streamText } from "ai";
 
-const MODEL = process.env.AI_MODEL || "gemini-2.0-flash";
+const gateway = createGateway({
+  apiKey: process.env.AiGatewaykey,
+});
+
+// Available models via Vercel AI Gateway
+export const AI_MODELS = [
+  { id: "google/gemini-flash-3.0", label: "Gemini Flash 3.0", provider: "Google" },
+  { id: "google/gemini-pro-2.5", label: "Gemini Pro 2.5", provider: "Google" },
+  { id: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5", provider: "Anthropic" },
+  { id: "openai/gpt-4o", label: "GPT-4o", provider: "OpenAI" },
+  { id: "openai/gpt-4o-mini", label: "GPT-4o mini", provider: "OpenAI" },
+  { id: "meta/llama-4-scout", label: "Llama 4 Scout", provider: "Meta" },
+];
+
+const DEFAULT_MODEL = "google/gemini-flash-3.0";
 
 const SYSTEM = `You are Koan, a zen writing companion embedded in ool, a mindful note editor.
 You help writers with clarity, creativity, and beauty.
@@ -9,9 +22,15 @@ Keep responses concise, elegant, and thoughtful.
 Use markdown formatting when appropriate.
 Match the language of the user's text when possible.`;
 
+export async function GET() {
+  return Response.json({ models: AI_MODELS, default: DEFAULT_MODEL });
+}
+
 export async function POST(req: Request) {
   try {
-    const { action, content, selection, customPrompt } = await req.json();
+    const { action, content, selection, customPrompt, model } = await req.json();
+
+    const modelId = model || DEFAULT_MODEL;
 
     let prompt = "";
     switch (action) {
@@ -41,7 +60,7 @@ export async function POST(req: Request) {
     }
 
     const result = streamText({
-      model: google(MODEL),
+      model: gateway(modelId),
       system: SYSTEM,
       prompt,
     });

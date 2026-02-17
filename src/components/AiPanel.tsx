@@ -3,6 +3,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { AiAction } from "@/lib/types";
 
+interface AiModel {
+  id: string;
+  label: string;
+  provider: string;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -20,15 +26,35 @@ const AI_ACTIONS: { id: AiAction; label: string; icon: string; hint: string }[] 
   { id: "translate",  label: "Translate",  icon: "\u8A33", hint: "Translate to Japanese" },
 ];
 
+const MODEL_KEY = "ool-ai-model";
+
 export default function AiPanel({ open, onClose, noteContent, selection, onInsert }: Props) {
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState("");
   const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [models, setModels] = useState<AiModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState("google/gemini-flash-3.0");
+  const [showModelPicker, setShowModelPicker] = useState(false);
   const responseRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const modelPickerRef = useRef<HTMLDivElement>(null);
+
+  // Load models from API and saved preference
+  useEffect(() => {
+    const saved = localStorage.getItem(MODEL_KEY);
+    if (saved) setSelectedModel(saved);
+
+    fetch("/api/ai")
+      .then(r => r.json())
+      .then(data => {
+        if (data.models) setModels(data.models);
+        if (!saved && data.default) setSelectedModel(data.default);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -46,6 +72,24 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
       responseRef.current.scrollTop = responseRef.current.scrollHeight;
     }
   }, [response]);
+
+  // Close model picker on outside click
+  useEffect(() => {
+    if (!showModelPicker) return;
+    const handleClick = (e: MouseEvent) => {
+      if (modelPickerRef.current && !modelPickerRef.current.contains(e.target as Node)) {
+        setShowModelPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showModelPicker]);
+
+  const handleModelChange = (modelId: string) => {
+    setSelectedModel(modelId);
+    localStorage.setItem(MODEL_KEY, modelId);
+    setShowModelPicker(false);
+  };
 
   const callAi = useCallback(async (action: AiAction, prompt?: string) => {
     if (loading) return;
@@ -65,6 +109,7 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
           content: noteContent,
           selection,
           customPrompt: prompt,
+          model: selectedModel,
         }),
         signal: abortRef.current.signal,
       });
@@ -93,7 +138,7 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
       setLoading(false);
       abortRef.current = null;
     }
-  }, [noteContent, selection, loading]);
+  }, [noteContent, selection, loading, selectedModel]);
 
   const handleCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,6 +161,9 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
 
   if (!open) return null;
 
+  const currentModel = models.find(m => m.id === selectedModel);
+  const modelLabel = currentModel?.label || selectedModel.split("/").pop() || "AI";
+
   return (
     <>
       {/* Backdrop */}
@@ -137,7 +185,39 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[9px] text-[var(--text-tertiary)] font-mono">gemini flash</span>
+            {/* Model selector */}
+            <div className="relative" ref={modelPickerRef}>
+              <button
+                onClick={() => setShowModelPicker(p => !p)}
+                className="flex items-center gap-1 px-2 py-1 text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-md hover:border-[var(--border)] hover:text-[var(--text-secondary)] transition-all font-mono"
+              >
+                {modelLabel}
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {showModelPicker && (
+                <div className="absolute top-full right-0 mt-1 z-50 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-lg overflow-hidden animate-fade-in" style={{ minWidth: 200 }}>
+                  <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-medium">
+                    Model
+                  </div>
+                  {models.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => handleModelChange(m.id)}
+                      className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between ${
+                        m.id === selectedModel
+                          ? 'text-[var(--accent)] bg-[var(--accent-subtle)]'
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                      }`}
+                    >
+                      <span>{m.label}</span>
+                      <span className="text-[9px] text-[var(--text-tertiary)]">{m.provider}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={onClose} className="toolbar-btn" aria-label="Close">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6L6 18M6 6l12 12" />
@@ -195,7 +275,7 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
               {error ? (
                 <div className="text-[var(--danger)] text-sm">{error}</div>
               ) : (
-                <div className="ai-response prose prose-invert prose-sm max-w-none">
+                <div className="ai-response prose prose-sm max-w-none">
                   {response.split("\n").map((line, i) => (
                     <p key={i} className={`${!line.trim() ? "h-2" : ""} leading-relaxed`}>
                       {line}
@@ -230,7 +310,7 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
         {!response && !error && !loading && (
           <div className="px-5 pb-4 text-center">
             <p className="text-[11px] text-[var(--text-tertiary)] italic leading-relaxed">
-              {selection ? "Text selected — actions will focus on selection" : "Choose an action or ask a question"}
+              {selection ? "Text selected \u2014 actions will focus on selection" : "Choose an action or ask a question"}
             </p>
           </div>
         )}
