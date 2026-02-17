@@ -471,3 +471,26 @@ html, body {
   color: var(--text-tertiary);
   line-height: 1.8;
 }
+
+/* ── Subtle glow on active editor ── */
+.editor-textarea:focus {
+  box-shadow: inset 0 0 80px -40px rgba(196,168,130,0.03);
+}
+
+/* ── Print styles ── */
+@media print {
+  body { background: white; color: black; }
+  .prose { color: #1a1a1a; }
+  .toolbar-btn, .search-input, .note-item button { display: none; }
+}
+
+/* ── Smooth transitions on everything ── */
+button, a, input {
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+/* ── Formatting toolbar text buttons ── */
+.toolbar-btn span {
+  font-family: 'Inter', sans-serif;
+  user-select: none;
+}
