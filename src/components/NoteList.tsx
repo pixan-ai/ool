@@ -119,12 +119,15 @@ export default function NoteList({ notes, activeId, onSelect, onNew, onDelete }:
         )}
       </div>
 
-      {/* Footer with count */}
-      {notes.length > 0 && (
-        <div className="px-4 py-2 border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-tertiary)] text-center">
-          {notes.length} note{notes.length !== 1 ? 's' : ''}
+      {/* Footer */}
+      <div className="px-4 py-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+        <span className="text-[10px] text-[var(--text-tertiary)]">
+          {notes.length > 0 ? `${notes.length} note${notes.length !== 1 ? 's' : ''}` : ''}
+        </span>
+        <div className="hidden md:flex items-center gap-1.5">
+          <span className="kbd">Ctrl+K</span>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -11,9 +11,11 @@ interface Props {
   onBack: () => void;
   onColorChange: (color: NoteColor) => void;
   onEmail: () => void;
+  externalFocusToggle?: boolean;
+  externalPreviewToggle?: boolean;
 }
 
-export default function Editor({ note, onChange, onBack, onColorChange, onEmail }: Props) {
+export default function Editor({ note, onChange, onBack, onColorChange, onEmail, externalFocusToggle, externalPreviewToggle }: Props) {
   const [showPreview, setShowPreview] = useState(true);
   const [mobileTab, setMobileTab] = useState<"write" | "read">("write");
   const [focusMode, setFocusMode] = useState(false);
@@ -37,6 +39,19 @@ export default function Editor({ note, onChange, onBack, onColorChange, onEmail 
       focusTextareaRef.current.focus();
     }
   }, [focusMode]);
+
+  // External toggles from command palette
+  useEffect(() => {
+    if (externalFocusToggle !== undefined) {
+      setFocusMode(f => !f);
+    }
+  }, [externalFocusToggle]);
+
+  useEffect(() => {
+    if (externalPreviewToggle !== undefined) {
+      setShowPreview(p => !p);
+    }
+  }, [externalPreviewToggle]);
 
   // Show "saved" indicator on content change
   useEffect(() => {

@@ -5,12 +5,16 @@ import { Note, NoteColor } from "@/lib/types";
 import { loadNotes, createNote, updateNote, updateNoteColor, deleteNote, getTitle } from "@/lib/notes";
 import NoteList from "@/components/NoteList";
 import Editor from "@/components/Editor";
+import CommandPalette from "@/components/CommandPalette";
 
 export default function Home() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  const [focusModeFromPalette, setFocusModeFromPalette] = useState(false);
+  const [togglePreviewFromPalette, setTogglePreviewFromPalette] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
@@ -25,6 +29,13 @@ export default function Home() {
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      // Command palette
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdPaletteOpen(p => !p);
+        return;
+      }
+      // New note
       if ((e.metaKey || e.ctrlKey) && e.key === "n") {
         e.preventDefault();
         handleNew();
@@ -102,6 +113,15 @@ export default function Home() {
     window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
   }, [activeNote]);
 
+  // Commands from palette
+  const handleFocusMode = useCallback(() => {
+    setFocusModeFromPalette(p => !p);
+  }, []);
+
+  const handleTogglePreview = useCallback(() => {
+    setTogglePreviewFromPalette(p => !p);
+  }, []);
+
   if (!mounted) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -114,6 +134,18 @@ export default function Home() {
     <div className="flex h-full overflow-hidden relative">
       {/* Ambient breathing circle */}
       <div className="ambient-circle" style={{ top: '-200px', right: '-200px' }} />
+
+      {/* Command Palette */}
+      <CommandPalette
+        open={cmdPaletteOpen}
+        onClose={() => setCmdPaletteOpen(false)}
+        notes={notes}
+        onSelectNote={(id) => { handleSelect(id); }}
+        onNewNote={handleNew}
+        onFocusMode={handleFocusMode}
+        onTogglePreview={handleTogglePreview}
+        onEmail={handleEmail}
+      />
 
       {/* Sidebar */}
       <div
@@ -142,6 +174,8 @@ export default function Home() {
             onBack={handleBack}
             onColorChange={handleColorChange}
             onEmail={handleEmail}
+            externalFocusToggle={focusModeFromPalette}
+            externalPreviewToggle={togglePreviewFromPalette}
           />
         ) : (
           <div className="flex h-full items-center justify-center animate-fade-in">
@@ -157,9 +191,15 @@ export default function Home() {
               >
                 Create a note
               </button>
-              <div className="mt-6 flex items-center gap-3 justify-center">
-                <span className="kbd">Ctrl+N</span>
-                <span className="text-[10px] text-[var(--text-tertiary)]">new note</span>
+              <div className="mt-8 space-y-2">
+                <div className="flex items-center gap-3 justify-center">
+                  <span className="kbd">Ctrl+N</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">new note</span>
+                </div>
+                <div className="flex items-center gap-3 justify-center">
+                  <span className="kbd">Ctrl+K</span>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">command palette</span>
+                </div>
               </div>
             </div>
           </div>
