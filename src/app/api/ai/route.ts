@@ -1,11 +1,13 @@
 import { createGateway, streamText } from "ai";
 
+export const dynamic = "force-dynamic";
+
 const gateway = createGateway({
   apiKey: process.env.AiGatewaykey,
 });
 
 // Available models via Vercel AI Gateway
-export const AI_MODELS = [
+const AI_MODELS = [
   { id: "google/gemini-flash-3.0", label: "Gemini Flash 3.0", provider: "Google" },
   { id: "google/gemini-pro-2.5", label: "Gemini Pro 2.5", provider: "Google" },
   { id: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5", provider: "Anthropic" },
