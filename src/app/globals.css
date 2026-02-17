@@ -3,17 +3,58 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ═══════════════════════════════════════════
+   ZEN DESIGN SYSTEM — ool
+   Inspired by: ink, paper, bamboo, stone
+   ═══════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
+
 :root {
-  --bg: #09090b;
-  --bg-secondary: #18181b;
-  --bg-hover: #27272a;
-  --border: #27272a;
-  --text: #fafafa;
-  --text-secondary: #a1a1aa;
-  --accent: #3b82f6;
-  --danger: #ef4444;
+  /* Core palette — warm ink & paper */
+  --bg:             #0a0a0c;
+  --bg-secondary:   #111113;
+  --bg-elevated:    #18181b;
+  --bg-hover:       #1f1f23;
+  --border:         #252529;
+  --border-subtle:  #1c1c20;
+
+  /* Text — warm paper tones */
+  --text:           #e8e6e1;
+  --text-secondary: #7a7872;
+  --text-tertiary:  #4a4944;
+
+  /* Accent — golden amber (kincha) */
+  --accent:         #c4a882;
+  --accent-hover:   #d4bc9a;
+  --accent-subtle:  rgba(196,168,130,0.08);
+
+  /* Semantic */
+  --danger:         #c47d7d;
+  --success:        #7d9a78;
+
+  /* Note colors */
+  --note-stone:     #8a8884;
+  --note-bamboo:    #7d9a78;
+  --note-sakura:    #c4889a;
+  --note-sumi:      #6a6a70;
+  --note-kincha:    #c4a882;
+  --note-sora:      #7d9ab8;
+  --note-fuji:      #9a7db8;
+
+  /* Sizing */
+  --sidebar-width:  280px;
+  --toolbar-height: 44px;
+
+  /* Transitions */
+  --ease-out:       cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast:  150ms;
+  --duration-normal: 250ms;
+  --duration-slow:  400ms;
 }
 
+/* ── Reset ── */
 * {
   margin: 0;
   padding: 0;
@@ -24,62 +65,23 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+  overflow: hidden;
 }
 
-/* Markdown preview styling */
-.prose {
-  --tw-prose-body: #d4d4d8;
-  --tw-prose-headings: #fafafa;
-  --tw-prose-links: #60a5fa;
-  --tw-prose-bold: #fafafa;
-  --tw-prose-code: #e4e4e7;
-  --tw-prose-pre-bg: #18181b;
-  --tw-prose-pre-code: #d4d4d8;
-  --tw-prose-quotes: #a1a1aa;
-  --tw-prose-quote-borders: #3f3f46;
-  --tw-prose-counters: #71717a;
-  --tw-prose-bullets: #52525b;
-  --tw-prose-hr: #27272a;
-  --tw-prose-th-borders: #3f3f46;
-  --tw-prose-td-borders: #27272a;
-}
-
-.prose code:not(pre code) {
-  background: var(--bg-secondary);
-  padding: 0.15em 0.4em;
-  border-radius: 4px;
-  font-size: 0.875em;
-}
-
-.prose code::before,
-.prose code::after {
-  content: none;
-}
-
-/* Editor textarea */
-.editor-textarea {
-  background: transparent;
+/* ── Selection ── */
+::selection {
+  background: rgba(196,168,130,0.25);
   color: var(--text);
-  caret-color: var(--accent);
-  resize: none;
-  outline: none;
-  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
-  font-size: 14px;
-  line-height: 1.7;
-  tab-size: 2;
 }
 
-.editor-textarea::placeholder {
-  color: var(--text-secondary);
-  opacity: 0.5;
-}
-
-/* Scrollbar */
+/* ── Scrollbar — whisper-thin ── */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -87,17 +89,385 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-  border-radius: 3px;
+  background: var(--border);
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+  background: var(--text-tertiary);
 }
 
-/* Mobile safe area */
+/* ── Ensō Logo ── */
+.enso {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  border-top-color: transparent;
+  transform: rotate(-30deg);
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+
+.enso:hover {
+  transform: rotate(330deg);
+}
+
+/* ── Ambient Breathing Circle ── */
+@keyframes breathe {
+  0%, 100% { opacity: 0.03; transform: scale(1); }
+  50% { opacity: 0.06; transform: scale(1.05); }
+}
+
+.ambient-circle {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  opacity: 0.03;
+  pointer-events: none;
+  animation: breathe 8s ease-in-out infinite;
+  z-index: 0;
+}
+
+/* ── Fade Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gentlePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--duration-normal) var(--ease-out) both;
+}
+
+.animate-fade-in-left {
+  animation: fadeInLeft var(--duration-normal) var(--ease-out) both;
+}
+
+.animate-slide-up {
+  animation: slideUp var(--duration-slow) var(--ease-out) both;
+}
+
+/* ── Editor Textarea ── */
+.editor-textarea {
+  background: transparent;
+  color: var(--text);
+  caret-color: var(--accent);
+  resize: none;
+  outline: none;
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'JetBrains Mono', Menlo, monospace;
+  font-size: 13.5px;
+  line-height: 1.8;
+  tab-size: 2;
+  letter-spacing: 0;
+}
+
+.editor-textarea::placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 15px;
+}
+
+/* ── Markdown Preview (Prose) ── */
+.prose {
+  --tw-prose-body: #d4d2cd;
+  --tw-prose-headings: #e8e6e1;
+  --tw-prose-links: var(--accent);
+  --tw-prose-bold: #e8e6e1;
+  --tw-prose-code: #d4d2cd;
+  --tw-prose-pre-bg: var(--bg-secondary);
+  --tw-prose-pre-code: #d4d2cd;
+  --tw-prose-quotes: var(--text-secondary);
+  --tw-prose-quote-borders: var(--accent);
+  --tw-prose-counters: var(--text-secondary);
+  --tw-prose-bullets: var(--text-tertiary);
+  --tw-prose-hr: var(--border);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border-subtle);
+  font-family: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+}
+
+.prose h1, .prose h2, .prose h3 {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.prose h1 {
+  font-size: 1.75em;
+  margin-bottom: 0.4em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.prose h2 {
+  font-size: 1.35em;
+  margin-top: 1.8em;
+}
+
+.prose h3 {
+  font-size: 1.1em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.prose p {
+  font-size: 1.05em;
+  line-height: 1.85;
+}
+
+.prose a {
+  text-decoration: none;
+  border-bottom: 1px solid rgba(196,168,130,0.3);
+  transition: border-color var(--duration-fast);
+}
+
+.prose a:hover {
+  border-bottom-color: var(--accent);
+}
+
+.prose blockquote {
+  border-left-width: 2px;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.prose code:not(pre code) {
+  background: var(--bg-elevated);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.prose code::before,
+.prose code::after {
+  content: none;
+}
+
+.prose pre {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.prose img {
+  border-radius: 8px;
+}
+
+.prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border), transparent);
+  margin: 2em 0;
+}
+
+.prose table {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875em;
+}
+
+/* ── Toolbar Button ── */
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  transition: all var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.toolbar-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.toolbar-btn.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+/* ── Note Color Dot ── */
+.color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.color-dot:hover {
+  transform: scale(1.5);
+}
+
+/* ── Color Picker ── */
+.color-picker-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring);
+  border: 2px solid transparent;
+}
+
+.color-picker-dot:hover {
+  transform: scale(1.2);
+}
+
+.color-picker-dot.selected {
+  border-color: var(--text);
+  transform: scale(1.15);
+}
+
+/* ── Focus Mode ── */
+.focus-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.focus-mode .editor-textarea {
+  max-width: 680px;
+  width: 100%;
+  font-size: 15px;
+  line-height: 2;
+}
+
+@keyframes focusEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.focus-mode {
+  animation: focusEnter var(--duration-slow) var(--ease-out);
+}
+
+/* ── Search ── */
+.search-input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 6px 10px 6px 32px;
+  outline: none;
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  transition: border-color var(--duration-fast);
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ── Toast / Status ── */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.toast {
+  animation: toastIn var(--duration-normal) var(--ease-spring);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+/* ── Divider — ink wash ── */
+.divider-vertical {
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, var(--border), transparent);
+}
+
+/* ── Shortcut Badge ── */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+/* ── Mobile safe area ── */
 @supports (padding: env(safe-area-inset-bottom)) {
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
+}
+
+/* ── Transitions for sidebar ── */
+.sidebar-enter {
+  animation: fadeInLeft var(--duration-normal) var(--ease-out);
+}
+
+/* ── Note item hover line ── */
+.note-item {
+  position: relative;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.note-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.note-item.active::before {
+  background: var(--accent);
+}
+
+/* ── Empty state zen ── */
+.zen-quote {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-style: italic;
+  font-size: 1.1em;
+  color: var(--text-tertiary);
+  line-height: 1.8;
 }

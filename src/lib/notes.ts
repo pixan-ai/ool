@@ -1,4 +1,4 @@
-import { Note } from "./types";
+import { Note, NoteColor } from "./types";
 
 const STORAGE_KEY = "ool-notes";
 
@@ -10,7 +10,10 @@ export function loadNotes(): Note[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const notes = JSON.parse(raw) as Note[];
+    // Migrate old notes without color field
+    return notes.map(n => ({ ...n, color: n.color || 'stone' }));
   } catch {
     return [];
   }
@@ -20,11 +23,12 @@ function saveNotes(notes: Note[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
 }
 
-export function createNote(): Note {
+export function createNote(color: NoteColor = 'stone'): Note {
   const notes = loadNotes();
   const note: Note = {
     id: generateId(),
     content: "",
+    color,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -43,6 +47,16 @@ export function updateNote(id: string, content: string): Note | null {
   return notes[index];
 }
 
+export function updateNoteColor(id: string, color: NoteColor): Note | null {
+  const notes = loadNotes();
+  const index = notes.findIndex((n) => n.id === id);
+  if (index === -1) return null;
+  notes[index].color = color;
+  notes[index].updatedAt = Date.now();
+  saveNotes(notes);
+  return notes[index];
+}
+
 export function deleteNote(id: string): void {
   const notes = loadNotes();
   saveNotes(notes.filter((n) => n.id !== id));
@@ -51,15 +65,13 @@ export function deleteNote(id: string): void {
 export function getTitle(note: Note): string {
   const firstLine = note.content.split("\n")[0]?.trim();
   if (!firstLine) return "Untitled";
-  // Strip markdown heading markers
   return firstLine.replace(/^#+\s*/, "") || "Untitled";
 }
 
 export function getPreview(note: Note): string {
   const lines = note.content.split("\n").filter((l) => l.trim());
   const second = lines[1]?.trim() || "";
-  // Strip markdown formatting for preview
-  return second.replace(/[#*_~`>\-[\]()]/g, "").trim() || "No content";
+  return second.replace(/[#*_~`>\-[\]()]/g, "").trim() || "";
 }
 
 export function formatDate(timestamp: number): string {
@@ -69,12 +81,28 @@ export function formatDate(timestamp: number): string {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  if (hours < 24) return `${hours}h`;
+  if (days < 7) return `${days}d`;
   return new Date(timestamp).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });
+}
+
+export function getWordCount(content: string): number {
+  return content.trim() ? content.trim().split(/\s+/).length : 0;
+}
+
+export function getCharCount(content: string): number {
+  return content.length;
+}
+
+export function searchNotes(notes: Note[], query: string): Note[] {
+  if (!query.trim()) return notes;
+  const q = query.toLowerCase();
+  return notes.filter(n =>
+    n.content.toLowerCase().includes(q)
+  );
 }
