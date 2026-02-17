@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Note, NoteColor } from "@/lib/types";
-import { loadNotes, createNote, updateNote, updateNoteColor, deleteNote, getTitle } from "@/lib/notes";
+import { Note, NoteColor, CanvasBlock } from "@/lib/types";
+import { loadNotes, createNote, updateNote, updateNoteColor, updateNoteMode, updateNoteBlocks, deleteNote, getTitle } from "@/lib/notes";
 import NoteList from "@/components/NoteList";
 import Editor from "@/components/Editor";
 import CommandPalette from "@/components/CommandPalette";
@@ -16,6 +16,7 @@ export default function Home() {
   const [focusModeFromPalette, setFocusModeFromPalette] = useState(false);
   const [togglePreviewFromPalette, setTogglePreviewFromPalette] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout>>(null);
+  const blocksSaveTimeout = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
     const loaded = loadNotes();
@@ -26,16 +27,13 @@ export default function Home() {
     setMounted(true);
   }, []);
 
-  // Global keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      // Command palette
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setCmdPaletteOpen(p => !p);
         return;
       }
-      // New note
       if ((e.metaKey || e.ctrlKey) && e.key === "n") {
         e.preventDefault();
         handleNew();
@@ -88,6 +86,35 @@ export default function Home() {
     [activeId]
   );
 
+  const handleModeChange = useCallback(
+    (mode: 'markdown' | 'canvas') => {
+      if (!activeId) return;
+      updateNoteMode(activeId, mode);
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === activeId ? { ...n, mode, updatedAt: Date.now() } : n
+        )
+      );
+    },
+    [activeId]
+  );
+
+  const handleBlocksChange = useCallback(
+    (blocks: CanvasBlock[]) => {
+      if (!activeId) return;
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === activeId ? { ...n, blocks, updatedAt: Date.now() } : n
+        )
+      );
+      if (blocksSaveTimeout.current) clearTimeout(blocksSaveTimeout.current);
+      blocksSaveTimeout.current = setTimeout(() => {
+        updateNoteBlocks(activeId, blocks);
+      }, 300);
+    },
+    [activeId]
+  );
+
   const handleDelete = useCallback(
     (id: string) => {
       deleteNote(id);
@@ -109,11 +136,14 @@ export default function Home() {
     if (!activeNote) return;
     const title = getTitle(activeNote);
     const subject = encodeURIComponent(title);
-    const body = encodeURIComponent(activeNote.content);
+    let content = activeNote.content;
+    if (activeNote.mode === 'canvas' && activeNote.blocks) {
+      content = activeNote.blocks.map(b => b.content).filter(Boolean).join("\n\n---\n\n");
+    }
+    const body = encodeURIComponent(content);
     window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
   }, [activeNote]);
 
-  // Commands from palette
   const handleFocusMode = useCallback(() => {
     setFocusModeFromPalette(p => !p);
   }, []);
@@ -132,10 +162,8 @@ export default function Home() {
 
   return (
     <div className="flex h-full overflow-hidden relative">
-      {/* Ambient breathing circle */}
       <div className="ambient-circle" style={{ top: '-200px', right: '-200px' }} />
 
-      {/* Command Palette */}
       <CommandPalette
         open={cmdPaletteOpen}
         onClose={() => setCmdPaletteOpen(false)}
@@ -147,7 +175,6 @@ export default function Home() {
         onEmail={handleEmail}
       />
 
-      {/* Sidebar */}
       <div
         className={`
           ${showSidebar ? "translate-x-0" : "-translate-x-full"}
@@ -165,7 +192,6 @@ export default function Home() {
         />
       </div>
 
-      {/* Editor */}
       <div className="flex-1 min-w-0">
         {activeNote ? (
           <Editor
@@ -174,6 +200,8 @@ export default function Home() {
             onBack={handleBack}
             onColorChange={handleColorChange}
             onEmail={handleEmail}
+            onModeChange={handleModeChange}
+            onBlocksChange={handleBlocksChange}
             externalFocusToggle={focusModeFromPalette}
             externalPreviewToggle={togglePreviewFromPalette}
           />

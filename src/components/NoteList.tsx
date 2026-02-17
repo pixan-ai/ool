@@ -89,8 +89,14 @@ export default function NoteList({ notes, activeId, onSelect, onNew, onDelete }:
                 />
 
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate leading-snug">
-                    {getTitle(note)}
+                  <div className="text-sm font-medium truncate leading-snug flex items-center gap-1.5">
+                    {note.mode === 'canvas' && (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-40">
+                        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" />
+                        <rect x="3" y="14" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="7" rx="1" />
+                      </svg>
+                    )}
+                    <span className="truncate">{getTitle(note)}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[11px] text-[var(--text-tertiary)] tabular-nums">

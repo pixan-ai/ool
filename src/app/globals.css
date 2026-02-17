@@ -494,3 +494,112 @@ button, a, input {
   font-family: 'Inter', sans-serif;
   user-select: none;
 }
+
+/* ═══════════════════════════════════════════
+   CANVAS MODE — free-write anywhere
+   ═══════════════════════════════════════════ */
+
+.canvas-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  cursor: crosshair;
+}
+
+.canvas-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.5;
+}
+
+.canvas-block {
+  position: absolute;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 0;
+  cursor: default;
+  transition: box-shadow var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+  z-index: 1;
+}
+
+.canvas-block:hover {
+  border-color: var(--border);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 2;
+}
+
+.canvas-block.editing {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 32px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+.canvas-block.dragging {
+  opacity: 0.85;
+  cursor: grabbing;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  z-index: 20;
+  transition: none;
+}
+
+.canvas-block-handle {
+  padding: 4px 8px;
+  cursor: grab;
+  display: flex;
+  justify-content: center;
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 10px 10px 0 0;
+  user-select: none;
+  touch-action: none;
+}
+
+.canvas-block-handle:active {
+  cursor: grabbing;
+}
+
+.canvas-block-textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 400px;
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--text);
+  caret-color: var(--accent);
+  resize: none;
+  outline: none;
+  border: none;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  border-radius: 0 0 10px 10px;
+}
+
+.canvas-block-textarea::placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.canvas-block-content {
+  padding: 10px 14px;
+  cursor: text;
+  min-height: 40px;
+  border-radius: 0 0 10px 10px;
+}
+
+.canvas-block-content .prose {
+  font-size: 0.85em;
+}
+
+.canvas-block-content .prose p {
+  margin: 0;
+  line-height: 1.6;
+}

@@ -1,9 +1,19 @@
 export type NoteColor = 'stone' | 'bamboo' | 'sakura' | 'sumi' | 'kincha' | 'sora' | 'fuji';
 
+export interface CanvasBlock {
+  id: string;
+  x: number; // percentage 0-100
+  y: number; // percentage 0-100
+  content: string;
+  width: number; // percentage 0-100
+}
+
 export interface Note {
   id: string;
   content: string;
   color: NoteColor;
+  mode: 'markdown' | 'canvas';
+  blocks?: CanvasBlock[];
   createdAt: number;
   updatedAt: number;
 }
