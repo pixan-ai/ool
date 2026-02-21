@@ -8,7 +8,7 @@
    Inspired by: ink, paper, bamboo, stone
    ═══════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
 /* ── Dark Theme (default) ── */
 :root {
@@ -170,11 +170,11 @@ html, body {
   caret-color: var(--accent);
   resize: none;
   outline: none;
-  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'JetBrains Mono', Menlo, monospace;
-  font-size: 13.5px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
   line-height: 1.8;
   tab-size: 2;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
 }
 
 /* Constrain prose width on wide monitors for readability */
@@ -187,8 +187,7 @@ html, body {
 .editor-textarea::placeholder {
   color: var(--text-tertiary);
   font-style: italic;
-  font-family: 'Crimson Pro', Georgia, serif;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .editor-textarea:focus {
@@ -217,7 +216,7 @@ html, body {
   --tw-prose-hr: var(--border);
   --tw-prose-th-borders: var(--border);
   --tw-prose-td-borders: var(--border-subtle);
-  font-family: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .light .prose {
@@ -372,7 +371,7 @@ html, body {
 .focus-mode .editor-textarea {
   max-width: 680px;
   width: 100%;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 2;
 }
 
@@ -486,11 +485,12 @@ html, body {
 
 /* ── Empty state zen ── */
 .zen-quote {
-  font-family: 'Crimson Pro', Georgia, serif;
+  font-family: 'Inter', -apple-system, sans-serif;
   font-style: italic;
-  font-size: 1.1em;
+  font-size: 1.05em;
   color: var(--text-tertiary);
   line-height: 1.8;
+  font-weight: 300;
 }
 
 /* ── Smooth transitions ── */
@@ -583,7 +583,7 @@ button, a, input {
   resize: none;
   outline: none;
   border: none;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: 'Inter', -apple-system, sans-serif;
   font-size: 13px;
   line-height: 1.7;
   border-radius: 0 0 10px 10px;
@@ -701,8 +701,8 @@ button, a, input {
 
 .ai-response p {
   margin: 0 0 0.5em 0;
-  font-family: 'Crimson Pro', Georgia, serif;
-  font-size: 0.95em;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.9em;
   line-height: 1.7;
 }
 
@@ -853,6 +853,37 @@ button, a, input {
   color: var(--accent);
   opacity: 0.6;
   font-size: 10px;
+}
+
+/* ═══════════════════════════════════════════
+   CONFIRM DIALOG
+   ═══════════════════════════════════════════ */
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn var(--duration-fast) var(--ease-out);
+}
+
+.confirm-dialog {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 28px;
+  min-width: 320px;
+  max-width: 400px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+  animation: slideUpPanel var(--duration-normal) var(--ease-out);
+}
+
+.light .confirm-dialog {
+  box-shadow: 0 24px 80px rgba(0,0,0,0.15);
 }
 
 /* ── Print styles ── */

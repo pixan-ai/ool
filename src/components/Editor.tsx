@@ -50,11 +50,15 @@ export default function Editor({
 
   const isCanvas = note.mode === 'canvas';
 
-  // Track note transitions
+  // Track note transitions — scroll to top
   useEffect(() => {
     setNoteKey(note.id);
     if (textareaRef.current && !isCanvas) {
+      textareaRef.current.scrollTop = 0;
       textareaRef.current.focus();
+    }
+    if (previewRef.current) {
+      previewRef.current.scrollTop = 0;
     }
   }, [note.id, isCanvas]);
 

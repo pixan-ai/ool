@@ -13,6 +13,7 @@ export default function Home() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [focusModeFromPalette, setFocusModeFromPalette] = useState(false);
@@ -21,6 +22,7 @@ export default function Home() {
   const [typewriterFromPalette, setTypewriterFromPalette] = useState(false);
   const [aiFromPalette, setAiFromPalette] = useState(false);
   const [isDark, setIsDark] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const saveTimeout = useRef<ReturnType<typeof setTimeout>>(null);
   const blocksSaveTimeout = useRef<ReturnType<typeof setTimeout>>(null);
 
@@ -128,18 +130,21 @@ export default function Home() {
     [activeId]
   );
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      deleteNote(id);
-      const updated = loadNotes();
-      setNotes(updated);
-      if (activeId === id) {
-        setActiveId(updated.length > 0 ? updated[0].id : null);
-        if (updated.length === 0) setShowSidebar(true);
-      }
-    },
-    [activeId]
-  );
+  const handleDeleteRequest = useCallback((id: string) => {
+    setDeleteConfirm(id);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (!deleteConfirm) return;
+    deleteNote(deleteConfirm);
+    const updated = loadNotes();
+    setNotes(updated);
+    if (activeId === deleteConfirm) {
+      setActiveId(updated.length > 0 ? updated[0].id : null);
+      if (updated.length === 0) setShowSidebar(true);
+    }
+    setDeleteConfirm(null);
+  }, [activeId, deleteConfirm]);
 
   const handlePin = useCallback(
     (id: string) => {
@@ -213,6 +218,8 @@ export default function Home() {
     );
   }
 
+  const deleteTarget = deleteConfirm ? notes.find(n => n.id === deleteConfirm) : null;
+
   return (
     <div className="flex h-full overflow-hidden relative">
       <div className="ambient-circle" style={{ top: '-200px', right: '-200px' }} />
@@ -232,11 +239,13 @@ export default function Home() {
         onAi={handleAi}
       />
 
+      {/* Sidebar */}
       <div
         className={`
           ${showSidebar ? "translate-x-0" : "-translate-x-full"}
-          fixed inset-0 z-20 w-full bg-[var(--bg)] transition-transform duration-300
-          md:relative md:translate-x-0 md:w-72 md:min-w-72 md:border-r md:border-[var(--border-subtle)]
+          fixed inset-0 z-20 w-full bg-[var(--bg)] transition-all duration-300
+          md:relative md:translate-x-0 md:border-r md:border-[var(--border-subtle)]
+          ${sidebarCollapsed ? 'md:w-0 md:min-w-0 md:overflow-hidden md:border-r-0' : 'md:w-80 md:min-w-80'}
         `}
         style={{ transitionTimingFunction: 'var(--ease-out)' }}
       >
@@ -245,7 +254,7 @@ export default function Home() {
           activeId={activeId}
           onSelect={handleSelect}
           onNew={handleNew}
-          onDelete={handleDelete}
+          onDelete={handleDeleteRequest}
           onPin={handlePin}
           onImport={handleImport}
           onThemeToggle={handleThemeToggle}
@@ -253,7 +262,23 @@ export default function Home() {
         />
       </div>
 
-      <div className="flex-1 min-w-0">
+      {/* Main content */}
+      <div className="flex-1 min-w-0 relative">
+        {/* Sidebar toggle (desktop) */}
+        <button
+          onClick={() => setSidebarCollapsed(c => !c)}
+          className="hidden md:flex absolute top-2 left-2 z-10 toolbar-btn"
+          title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {sidebarCollapsed ? (
+              <><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><polyline points="14 9 17 12 14 15" /></>
+            ) : (
+              <><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><polyline points="15 9 12 12 15 15" /></>
+            )}
+          </svg>
+        </button>
+
         {activeNote ? (
           <Editor
             note={activeNote}
@@ -271,9 +296,9 @@ export default function Home() {
           />
         ) : (
           <div className="h-full overflow-y-auto">
-            <div className="max-w-2xl mx-auto px-8 md:px-16 py-12 md:py-20 animate-fade-in">
+            <div className="max-w-2xl mx-auto px-10 md:px-20 py-16 md:py-24 animate-fade-in">
               {/* Hero */}
-              <div className="text-center mb-16">
+              <div className="text-center mb-20">
                 <div className="enso mx-auto mb-6" style={{ width: 56, height: 56, borderWidth: 2, opacity: 0.2 }} />
                 <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mb-3" style={{ color: 'var(--accent)' }}>
                   ool
@@ -285,27 +310,27 @@ export default function Home() {
               </div>
 
               {/* Quick start */}
-              <div className="mb-12">
-                <h2 className="text-xs uppercase tracking-widest text-[var(--text-tertiary)] font-medium mb-4">Quick start</h2>
+              <div className="mb-14">
+                <h2 className="text-xs uppercase tracking-widest text-[var(--text-tertiary)] font-medium mb-5">Quick start</h2>
                 <div className="space-y-3">
-                  <div className="flex items-start gap-4 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
+                  <div className="flex items-start gap-4 p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
                     <span className="text-lg mt-0.5" style={{ color: 'var(--accent)' }}>1</span>
                     <div>
-                      <p className="text-sm font-medium mb-0.5">Create a note</p>
+                      <p className="text-sm font-medium mb-1">Create a note</p>
                       <p className="text-xs text-[var(--text-tertiary)]">Click the <strong>+</strong> button in the sidebar or press <span className="kbd">Ctrl+N</span></p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-4 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
+                  <div className="flex items-start gap-4 p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
                     <span className="text-lg mt-0.5" style={{ color: 'var(--accent)' }}>2</span>
                     <div>
-                      <p className="text-sm font-medium mb-0.5">Write in Markdown</p>
+                      <p className="text-sm font-medium mb-1">Write in Markdown</p>
                       <p className="text-xs text-[var(--text-tertiary)]">Full markdown support with live preview. Use headings, lists, code blocks, tables, and more.</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-4 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
+                  <div className="flex items-start gap-4 p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
                     <span className="text-lg mt-0.5" style={{ color: 'var(--accent)' }}>3</span>
                     <div>
-                      <p className="text-sm font-medium mb-0.5">Everything saves automatically</p>
+                      <p className="text-sm font-medium mb-1">Everything saves automatically</p>
                       <p className="text-xs text-[var(--text-tertiary)]">Your notes are stored locally in your browser. No account needed.</p>
                     </div>
                   </div>
@@ -313,31 +338,31 @@ export default function Home() {
               </div>
 
               {/* Features grid */}
-              <div className="mb-12">
-                <h2 className="text-xs uppercase tracking-widest text-[var(--text-tertiary)] font-medium mb-4">Features</h2>
+              <div className="mb-14">
+                <h2 className="text-xs uppercase tracking-widest text-[var(--text-tertiary)] font-medium mb-5">Features</h2>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { icon: "star", title: "AI Assistant", desc: "Koan helps you write, improve, summarize, and brainstorm" },
-                    { icon: "grid", title: "Canvas Mode", desc: "Free-form spatial writing. Double-click anywhere to add blocks" },
-                    { icon: "expand", title: "Focus Mode", desc: "Distraction-free writing with just your words" },
-                    { icon: "present", title: "Presentation", desc: "Beautiful read-only view of your notes" },
-                    { icon: "palette", title: "Note Colors", desc: "Color-code your notes for easy organization" },
-                    { icon: "import", title: "Import / Export", desc: "Drag & drop .md files or download your notes" },
-                    { icon: "search", title: "Search & Sort", desc: "Find notes quickly by title, content, or color" },
-                    { icon: "theme", title: "Light & Dark", desc: "Toggle themes from the sidebar footer" },
+                    { title: "AI Assistant", desc: "Koan helps you write, improve, summarize, and brainstorm" },
+                    { title: "Canvas Mode", desc: "Free-form spatial writing. Double-click anywhere to add blocks" },
+                    { title: "Focus Mode", desc: "Distraction-free writing with just your words" },
+                    { title: "Presentation", desc: "Beautiful read-only view of your notes" },
+                    { title: "Note Colors", desc: "Color-code your notes for easy organization" },
+                    { title: "Import / Export", desc: "Drag & drop .md files or download your notes" },
+                    { title: "Search & Sort", desc: "Find notes quickly by title, content, or color" },
+                    { title: "Light & Dark", desc: "Toggle themes from the sidebar footer" },
                   ].map(f => (
-                    <div key={f.title} className="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
-                      <p className="text-[11px] font-semibold mb-1">{f.title}</p>
-                      <p className="text-[10px] text-[var(--text-tertiary)] leading-relaxed">{f.desc}</p>
+                    <div key={f.title} className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+                      <p className="text-xs font-semibold mb-1">{f.title}</p>
+                      <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">{f.desc}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Keyboard shortcuts */}
-              <div className="mb-12">
-                <h2 className="text-xs uppercase tracking-widest text-[var(--text-tertiary)] font-medium mb-4">Keyboard shortcuts</h2>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+              <div className="mb-14">
+                <h2 className="text-xs uppercase tracking-widest text-[var(--text-tertiary)] font-medium mb-5">Keyboard shortcuts</h2>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-2.5">
                   {[
                     ["Ctrl+N", "New note"],
                     ["Ctrl+K", "Command palette"],
@@ -349,7 +374,7 @@ export default function Home() {
                     ["Esc", "Exit modes"],
                   ].map(([key, label]) => (
                     <div key={key} className="flex items-center justify-between py-1.5">
-                      <span className="text-[11px] text-[var(--text-secondary)]">{label}</span>
+                      <span className="text-xs text-[var(--text-secondary)]">{label}</span>
                       <span className="kbd">{key}</span>
                     </div>
                   ))}
@@ -357,17 +382,17 @@ export default function Home() {
               </div>
 
               {/* CTA */}
-              <div className="text-center pb-8">
+              <div className="text-center pb-12">
                 <button
                   onClick={handleNew}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-xl bg-[var(--accent)] text-[var(--bg)] hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-2 px-8 py-3 text-sm font-medium rounded-xl bg-[var(--accent)] text-[var(--bg)] hover:opacity-90 transition-opacity"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 5v14M5 12h14" />
                   </svg>
                   Start writing
                 </button>
-                <p className="text-[10px] text-[var(--text-tertiary)] mt-3">
+                <p className="text-[11px] text-[var(--text-tertiary)] mt-4">
                   or drop .md files into the sidebar to import
                 </p>
               </div>
@@ -375,6 +400,36 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Delete confirmation */}
+      {deleteConfirm && (
+        <div className="confirm-backdrop" onClick={() => setDeleteConfirm(null)}>
+          <div className="confirm-dialog" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold mb-2">Delete note?</h3>
+            <p className="text-xs text-[var(--text-secondary)] mb-5 leading-relaxed">
+              {deleteTarget ? (
+                <>&ldquo;{getTitle(deleteTarget)}&rdquo; will be permanently deleted. This cannot be undone.</>
+              ) : (
+                <>This note will be permanently deleted. This cannot be undone.</>
+              )}
+            </p>
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--text-tertiary)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 text-xs font-medium rounded-lg bg-[var(--danger)] text-white hover:opacity-90 transition-opacity"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
