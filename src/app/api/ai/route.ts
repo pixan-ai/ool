@@ -3,7 +3,7 @@ import { createGateway, streamText } from "ai";
 export const dynamic = "force-dynamic";
 
 const gateway = createGateway({
-  apiKey: process.env.AiGatewaykey,
+  apiKey: process.env.AI_GATEWAY_KEY || process.env.AiGatewaykey,
 });
 
 // Available models via Vercel AI Gateway

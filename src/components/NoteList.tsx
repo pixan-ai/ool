@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Note, NOTE_COLORS, SortMode } from "@/lib/types";
 import { getTitle, getPreview, formatDate, searchNotes, sortNotes, importNote } from "@/lib/notes";
 
@@ -27,6 +27,18 @@ export default function NoteList({
 
   const sorted = sortNotes(notes, sortMode);
   const filtered = searchNotes(sorted, query);
+
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    if (!showSort) return;
+    const handleClick = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
+        setShowSort(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showSort]);
 
   const handleCopyContent = useCallback(async (note: Note) => {
     let content = note.content;

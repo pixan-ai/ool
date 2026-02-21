@@ -42,6 +42,16 @@ export default function Home() {
     setMounted(true);
   }, []);
 
+  const activeNote = notes.find((n) => n.id === activeId) || null;
+
+  const handleNew = useCallback(() => {
+    const note = createNote();
+    setNotes(loadNotes());
+    setActiveId(note.id);
+    setShowSidebar(false);
+  }, []);
+
+  // Keyboard shortcuts (must be after handleNew definition)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -56,16 +66,7 @@ export default function Home() {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, []);
-
-  const activeNote = notes.find((n) => n.id === activeId) || null;
-
-  const handleNew = useCallback(() => {
-    const note = createNote();
-    setNotes(loadNotes());
-    setActiveId(note.id);
-    setShowSidebar(false);
-  }, []);
+  }, [handleNew]);
 
   const handleSelect = useCallback((id: string) => {
     setActiveId(id);

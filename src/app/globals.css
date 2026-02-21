@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
@@ -7,8 +8,6 @@
    ZEN DESIGN SYSTEM — ool
    Inspired by: ink, paper, bamboo, stone
    ═══════════════════════════════════════════ */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
 /* ── Dark Theme (default) ── */
 :root {

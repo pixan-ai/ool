@@ -66,25 +66,36 @@ export default function Editor({
     if (focusMode && focusTextareaRef.current) focusTextareaRef.current.focus();
   }, [focusMode]);
 
+  const initialRender = useRef(true);
+
   useEffect(() => {
-    if (externalFocusToggle !== undefined) setFocusMode(f => !f);
+    if (initialRender.current) return;
+    setFocusMode(f => !f);
   }, [externalFocusToggle]);
 
   useEffect(() => {
-    if (externalPreviewToggle !== undefined) setShowPreview(p => !p);
+    if (initialRender.current) return;
+    setShowPreview(p => !p);
   }, [externalPreviewToggle]);
 
   useEffect(() => {
-    if (externalPresentationToggle !== undefined) setPresentationMode(p => !p);
+    if (initialRender.current) return;
+    setPresentationMode(p => !p);
   }, [externalPresentationToggle]);
 
   useEffect(() => {
-    if (externalTypewriterToggle !== undefined) setTypewriterMode(t => !t);
+    if (initialRender.current) return;
+    setTypewriterMode(t => !t);
   }, [externalTypewriterToggle]);
 
   useEffect(() => {
-    if (externalAiToggle !== undefined) setShowAi(a => !a);
+    if (initialRender.current) return;
+    setShowAi(a => !a);
   }, [externalAiToggle]);
+
+  useEffect(() => {
+    initialRender.current = false;
+  }, []);
 
   useEffect(() => {
     setSaved(false);
@@ -319,20 +330,23 @@ export default function Editor({
     showToast("Copied to clipboard");
   };
 
+  const noteContentRef = useRef(note.content);
+  useEffect(() => { noteContentRef.current = note.content; }, [note.content]);
+
   const handleAiInsert = useCallback((text: string) => {
     const textarea = textareaRef.current;
     if (!textarea) {
       // Append to end if no textarea
-      onChange(note.content + "\n\n" + text);
+      onChange(noteContentRef.current + "\n\n" + text);
       return;
     }
-    const pos = textarea.selectionEnd || note.content.length;
-    const before = note.content.substring(0, pos);
-    const after = note.content.substring(pos);
+    const pos = textarea.selectionEnd || noteContentRef.current.length;
+    const before = noteContentRef.current.substring(0, pos);
+    const after = noteContentRef.current.substring(pos);
     const separator = before.endsWith("\n") || before === "" ? "" : "\n\n";
     onChange(before + separator + text + after);
     showToast("Inserted");
-  }, [note.content, onChange, showToast]);
+  }, [onChange, showToast]);
 
   const handleTocJump = useCallback((line: number) => {
     const textarea = textareaRef.current;

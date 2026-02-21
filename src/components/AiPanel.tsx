@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { AiAction } from "@/lib/types";
+import MarkdownPreview from "./MarkdownPreview";
 
 interface AiModel {
   id: string;
@@ -276,11 +277,7 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
                 <div className="text-[var(--danger)] text-sm">{error}</div>
               ) : (
                 <div className="ai-response prose prose-sm max-w-none">
-                  {response.split("\n").map((line, i) => (
-                    <p key={i} className={`${!line.trim() ? "h-2" : ""} leading-relaxed`}>
-                      {line}
-                    </p>
-                  ))}
+                  <MarkdownPreview content={response} />
                   {loading && <span className="ai-cursor" />}
                 </div>
               )}

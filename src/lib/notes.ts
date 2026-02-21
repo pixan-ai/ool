@@ -196,10 +196,11 @@ export function sortNotes(notes: Note[], mode: SortMode): Note[] {
     case 'title':
       sorted.sort((a, b) => getTitle(a).localeCompare(getTitle(b)));
       break;
-    case 'color':
+    case 'color': {
       const colorOrder = ['stone', 'bamboo', 'sakura', 'sumi', 'kincha', 'sora', 'fuji'];
       sorted.sort((a, b) => colorOrder.indexOf(a.color) - colorOrder.indexOf(b.color));
       break;
+    }
   }
   // Pinned notes always on top
   const pinned = sorted.filter(n => n.pinned);
