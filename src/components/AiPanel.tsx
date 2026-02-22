@@ -191,21 +191,30 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
 
         {/* Prompt input */}
         <form onSubmit={handleSubmit} className="px-4 py-3">
-          <div className="relative">
+          <div className="relative flex items-center gap-2">
             <input
               ref={inputRef}
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={selection ? "Ask about selection..." : "Ask anything about your note..."}
-              className="search-input text-[13px]"
-              style={{ paddingLeft: "12px", paddingRight: loading ? "36px" : "12px" }}
+              className="search-input text-[13px] flex-1"
+              style={{ paddingLeft: "12px", paddingRight: "12px" }}
               disabled={loading}
             />
-            {loading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="ai-spinner" />
-              </div>
+            {loading ? (
+              <div className="shrink-0"><div className="ai-spinner" /></div>
+            ) : (
+              <button
+                type="submit"
+                disabled={!prompt.trim()}
+                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--accent)] text-[var(--bg)] disabled:opacity-30 hover:opacity-90 transition-opacity"
+                title="Send"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
             )}
           </div>
           {selection && !loading && (
