@@ -41,4 +41,3 @@ export const NOTE_COLORS_LIGHT: Record<NoteColor, { bg: string; dot: string }> =
   fuji:   { bg: 'rgba(130,90,160,0.08)',  dot: '#8a60b0' },
 };
 
-export type AiAction = 'continue' | 'improve' | 'summarize' | 'brainstorm' | 'haiku' | 'translate' | 'custom';

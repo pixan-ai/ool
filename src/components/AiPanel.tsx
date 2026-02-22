@@ -1,14 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { AiAction } from "@/lib/types";
 import MarkdownPreview from "./MarkdownPreview";
-
-interface AiModel {
-  id: string;
-  label: string;
-  provider: string;
-}
 
 interface Props {
   open: boolean;
@@ -18,32 +11,22 @@ interface Props {
   onInsert: (text: string) => void;
 }
 
-const AI_ACTIONS: { id: AiAction; label: string; icon: string; hint: string }[] = [
-  { id: "continue",  label: "Continue",  icon: "\u7D9A", hint: "Continue writing from where you left off" },
-  { id: "improve",   label: "Improve",   icon: "\u78E8", hint: "Polish and refine the text" },
-  { id: "summarize", label: "Summarize", icon: "\u7D04", hint: "Distill into key points" },
-  { id: "brainstorm",label: "Brainstorm", icon: "\u82BD", hint: "Generate related ideas" },
-  { id: "haiku",     label: "Haiku",     icon: "\u4FF3", hint: "Transform into a haiku" },
-  { id: "translate",  label: "Translate",  icon: "\u8A33", hint: "Translate to Japanese" },
-];
-
 const MODEL_KEY = "ool-ai-model";
 
 export default function AiPanel({ open, onClose, noteContent, selection, onInsert }: Props) {
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [customPrompt, setCustomPrompt] = useState("");
-  const [activeAction, setActiveAction] = useState<string | null>(null);
-  const [models, setModels] = useState<AiModel[]>([]);
+  const [prompt, setPrompt] = useState("");
   const [selectedModel, setSelectedModel] = useState("google/gemini-flash-3.0");
-  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [models, setModels] = useState<{ id: string; label: string; provider: string }[]>([]);
+  const [showModels, setShowModels] = useState(false);
   const responseRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const modelPickerRef = useRef<HTMLDivElement>(null);
+  const modelRef = useRef<HTMLDivElement>(null);
 
-  // Load models from API and saved preference
+  // Load models
   useEffect(() => {
     const saved = localStorage.getItem(MODEL_KEY);
     if (saved) setSelectedModel(saved);
@@ -61,7 +44,6 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
     if (open) {
       setResponse("");
       setError(null);
-      setActiveAction(null);
       setTimeout(() => inputRef.current?.focus(), 100);
     } else {
       if (abortRef.current) abortRef.current.abort();
@@ -76,29 +58,27 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
 
   // Close model picker on outside click
   useEffect(() => {
-    if (!showModelPicker) return;
-    const handleClick = (e: MouseEvent) => {
-      if (modelPickerRef.current && !modelPickerRef.current.contains(e.target as Node)) {
-        setShowModelPicker(false);
-      }
+    if (!showModels) return;
+    const h = (e: MouseEvent) => {
+      if (modelRef.current && !modelRef.current.contains(e.target as Node)) setShowModels(false);
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showModelPicker]);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showModels]);
 
-  const handleModelChange = (modelId: string) => {
-    setSelectedModel(modelId);
-    localStorage.setItem(MODEL_KEY, modelId);
-    setShowModelPicker(false);
+  const handleModelChange = (id: string) => {
+    setSelectedModel(id);
+    localStorage.setItem(MODEL_KEY, id);
+    setShowModels(false);
   };
 
-  const callAi = useCallback(async (action: AiAction, prompt?: string) => {
-    if (loading) return;
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prompt.trim() || loading) return;
+
     setLoading(true);
     setResponse("");
     setError(null);
-    setActiveAction(action);
-
     abortRef.current = new AbortController();
 
     try {
@@ -106,10 +86,9 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action,
           content: noteContent,
           selection,
-          customPrompt: prompt,
+          prompt: prompt.trim(),
           model: selectedModel,
         }),
         signal: abortRef.current.signal,
@@ -139,24 +118,13 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
       setLoading(false);
       abortRef.current = null;
     }
-  }, [noteContent, selection, loading, selectedModel]);
-
-  const handleCustomSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customPrompt.trim()) return;
-    callAi("custom", customPrompt);
-  };
+  }, [prompt, noteContent, selection, loading, selectedModel]);
 
   const handleInsert = () => {
     if (response) {
       onInsert(response);
-      onClose();
-    }
-  };
-
-  const handleCopy = async () => {
-    if (response) {
-      await navigator.clipboard.writeText(response);
+      setResponse("");
+      setPrompt("");
     }
   };
 
@@ -177,19 +145,16 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
       {/* Panel */}
       <div className="ai-panel">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2.5">
             <div className="ai-orb" />
-            <div>
-              <h2 className="text-sm font-semibold tracking-tight">Koan</h2>
-              <span className="text-[10px] text-[var(--text-tertiary)]">zen writing companion</span>
-            </div>
+            <span className="text-sm font-semibold tracking-tight">Koan</span>
           </div>
           <div className="flex items-center gap-2">
             {/* Model selector */}
-            <div className="relative" ref={modelPickerRef}>
+            <div className="relative" ref={modelRef}>
               <button
-                onClick={() => setShowModelPicker(p => !p)}
+                onClick={() => setShowModels(p => !p)}
                 className="flex items-center gap-1 px-2 py-1 text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-md hover:border-[var(--border)] hover:text-[var(--text-secondary)] transition-all font-mono"
               >
                 {modelLabel}
@@ -197,11 +162,8 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
-              {showModelPicker && (
+              {showModels && (
                 <div className="absolute top-full right-0 mt-1 z-50 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-lg overflow-hidden animate-fade-in" style={{ minWidth: 200 }}>
-                  <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-medium">
-                    Model
-                  </div>
                   {models.map(m => (
                     <button
                       key={m.id}
@@ -227,35 +189,17 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
           </div>
         </div>
 
-        {/* Actions grid */}
-        <div className="px-4 py-3">
-          <div className="grid grid-cols-3 gap-2">
-            {AI_ACTIONS.map(a => (
-              <button
-                key={a.id}
-                onClick={() => callAi(a.id)}
-                disabled={loading}
-                className={`ai-action-btn ${activeAction === a.id && loading ? "active" : ""}`}
-                title={a.hint}
-              >
-                <span className="text-base leading-none">{a.icon}</span>
-                <span className="text-[11px]">{a.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Custom prompt */}
-        <form onSubmit={handleCustomSubmit} className="px-4 pb-3">
+        {/* Prompt input */}
+        <form onSubmit={handleSubmit} className="px-4 py-3">
           <div className="relative">
             <input
               ref={inputRef}
               type="text"
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-              placeholder="Ask anything about your note..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={selection ? "Ask about selection..." : "Ask anything about your note..."}
               className="search-input text-[13px]"
-              style={{ paddingLeft: "12px" }}
+              style={{ paddingLeft: "12px", paddingRight: loading ? "36px" : "12px" }}
               disabled={loading}
             />
             {loading && (
@@ -264,15 +208,17 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
               </div>
             )}
           </div>
+          {selection && !loading && (
+            <p className="text-[10px] text-[var(--text-tertiary)] mt-1.5 px-1 italic">
+              Using selected text as context
+            </p>
+          )}
         </form>
 
         {/* Response */}
         {(response || error) && (
           <div className="border-t border-[var(--border-subtle)]">
-            <div
-              ref={responseRef}
-              className="px-5 py-4 max-h-64 overflow-y-auto"
-            >
+            <div ref={responseRef} className="px-5 py-4 max-h-64 overflow-y-auto">
               {error ? (
                 <div className="text-[var(--danger)] text-sm">{error}</div>
               ) : (
@@ -283,7 +229,7 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
               )}
             </div>
 
-            {/* Actions */}
+            {/* Insert / Copy */}
             {response && !loading && (
               <div className="flex items-center gap-2 px-4 py-2.5 border-t border-[var(--border-subtle)]">
                 <button
@@ -293,22 +239,13 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
                   Insert into note
                 </button>
                 <button
-                  onClick={handleCopy}
+                  onClick={async () => { await navigator.clipboard.writeText(response); }}
                   className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--text-tertiary)] transition-colors"
                 >
                   Copy
                 </button>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Empty hint */}
-        {!response && !error && !loading && (
-          <div className="px-5 pb-4 text-center">
-            <p className="text-[11px] text-[var(--text-tertiary)] italic leading-relaxed">
-              {selection ? "Text selected \u2014 actions will focus on selection" : "Choose an action or ask a question"}
-            </p>
           </div>
         )}
       </div>
