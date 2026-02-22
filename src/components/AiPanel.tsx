@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import MarkdownPreview from "./MarkdownPreview";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Props {
   open: boolean;
@@ -232,7 +233,7 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
                 <div className="text-[var(--danger)] text-sm">{error}</div>
               ) : (
                 <div className="ai-response prose prose-sm max-w-none">
-                  <MarkdownPreview content={response} />
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{response}</ReactMarkdown>
                   {loading && <span className="ai-cursor" />}
                 </div>
               )}
