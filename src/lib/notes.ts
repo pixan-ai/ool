@@ -7,9 +7,11 @@ export function loadNotes(): Note[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Note[]).map(n => ({
-      ...n, color: n.color || "stone", pinned: n.pinned || false,
-    })) : [];
+    if (!raw) return [];
+    return (JSON.parse(raw) as any[]).map(n => ({
+      id: n.id, content: n.content || "", color: n.color || "stone",
+      pinned: n.pinned || false, createdAt: n.createdAt || Date.now(), updatedAt: n.updatedAt || Date.now(),
+    }));
   } catch { return []; }
 }
 
