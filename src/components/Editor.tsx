@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Note, NoteColor, NOTE_COLORS, CanvasBlock } from "@/lib/types";
 import { getWordCount, getTitle, getReadingTime, getHeadings } from "@/lib/notes";
 import MarkdownPreview from "./MarkdownPreview";
+import TiptapEditor, { getTiptapInsert } from "./TiptapEditor";
 import Canvas from "./Canvas";
 import AiPanel from "./AiPanel";
 
@@ -29,11 +30,8 @@ export default function Editor({
   externalPresentationToggle, externalTypewriterToggle,
   externalAiToggle,
 }: Props) {
-  const [showPreview, setShowPreview] = useState(true);
-  const [mobileTab, setMobileTab] = useState<"write" | "read">("write");
   const [focusMode, setFocusMode] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
-  const [typewriterMode, setTypewriterMode] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showToc, setShowToc] = useState(false);
   const [showAi, setShowAi] = useState(false);
@@ -41,31 +39,18 @@ export default function Editor({
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [noteKey, setNoteKey] = useState(note.id);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const focusTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const tocRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   const isCanvas = note.mode === 'canvas';
 
-  // Track note transitions — scroll to top
+  // Track note transitions
   useEffect(() => {
     setNoteKey(note.id);
-    if (textareaRef.current && !isCanvas) {
-      textareaRef.current.scrollTop = 0;
-      textareaRef.current.focus();
-    }
-    if (previewRef.current) {
-      previewRef.current.scrollTop = 0;
-    }
-  }, [note.id, isCanvas]);
+  }, [note.id]);
 
-  useEffect(() => {
-    if (focusMode && focusTextareaRef.current) focusTextareaRef.current.focus();
-  }, [focusMode]);
-
+  // External toggle guards — skip first render
   const initialRender = useRef(true);
 
   useEffect(() => {
@@ -75,7 +60,7 @@ export default function Editor({
 
   useEffect(() => {
     if (initialRender.current) return;
-    setShowPreview(p => !p);
+    // Preview toggle — no-op in WYSIWYG mode, kept for command palette compat
   }, [externalPreviewToggle]);
 
   useEffect(() => {
@@ -85,7 +70,7 @@ export default function Editor({
 
   useEffect(() => {
     if (initialRender.current) return;
-    setTypewriterMode(t => !t);
+    // Typewriter — future Tiptap extension
   }, [externalTypewriterToggle]);
 
   useEffect(() => {
@@ -93,10 +78,9 @@ export default function Editor({
     setShowAi(a => !a);
   }, [externalAiToggle]);
 
-  useEffect(() => {
-    initialRender.current = false;
-  }, []);
+  useEffect(() => { initialRender.current = false; }, []);
 
+  // Auto-save indicator
   useEffect(() => {
     setSaved(false);
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -106,26 +90,24 @@ export default function Editor({
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [note.content, note.blocks]);
 
+  // Close color picker on outside click
   useEffect(() => {
     if (!showColorPicker) return;
-    const handleClick = (e: MouseEvent) => {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
-        setShowColorPicker(false);
-      }
+    const h = (e: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) setShowColorPicker(false);
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, [showColorPicker]);
 
+  // Close TOC on outside click
   useEffect(() => {
     if (!showToc) return;
-    const handleClick = (e: MouseEvent) => {
-      if (tocRef.current && !tocRef.current.contains(e.target as Node)) {
-        setShowToc(false);
-      }
+    const h = (e: MouseEvent) => {
+      if (tocRef.current && !tocRef.current.contains(e.target as Node)) setShowToc(false);
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, [showToc]);
 
   const showToast = useCallback((msg: string) => {
@@ -133,6 +115,7 @@ export default function Editor({
     setTimeout(() => setToast(null), 2000);
   }, []);
 
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -141,10 +124,6 @@ export default function Editor({
         if (showColorPicker) { setShowColorPicker(false); return; }
         if (showToc) { setShowToc(false); return; }
         if (showAi) { setShowAi(false); return; }
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === "p") {
-        e.preventDefault();
-        setShowPreview(p => !p);
       }
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "f") {
         e.preventDefault();
@@ -167,139 +146,9 @@ export default function Editor({
     return () => window.removeEventListener("keydown", handleKey);
   }, [focusMode, presentationMode, showColorPicker, showToc, showAi, showToast, onEmail]);
 
-  // Track selection for AI
-  const handleSelectionChange = useCallback(() => {
-    const textarea = focusMode ? focusTextareaRef.current : textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    if (start !== end) {
-      setSelection(textarea.value.substring(start, end));
-    } else {
-      setSelection("");
-    }
-  }, [focusMode]);
-
-  // Auto-lists on Enter
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      const target = e.currentTarget;
-      const start = target.selectionStart;
-      const textBefore = target.value.substring(0, start);
-      const lines = textBefore.split('\n');
-      const currentLine = lines[lines.length - 1];
-
-      // List continuation patterns
-      const bulletMatch = currentLine.match(/^(\s*)([-*+])\s/);
-      const numberedMatch = currentLine.match(/^(\s*)(\d+)\.\s/);
-      const checkboxMatch = currentLine.match(/^(\s*)([-*+])\s\[[ x]\]\s/);
-
-      const match = checkboxMatch || bulletMatch || numberedMatch;
-      if (match) {
-        const lineContent = currentLine.substring(match[0].length);
-        if (!lineContent.trim()) {
-          // Empty list item — remove it
-          e.preventDefault();
-          const beforeLine = target.value.substring(0, start - currentLine.length);
-          const afterCursor = target.value.substring(start);
-          const newValue = beforeLine + afterCursor;
-          onChange(newValue);
-          requestAnimationFrame(() => {
-            target.selectionStart = target.selectionEnd = beforeLine.length;
-          });
-          return;
-        }
-        // Continue list
-        e.preventDefault();
-        const [, indent] = match;
-        let nextPrefix: string;
-        if (checkboxMatch) {
-          nextPrefix = `${indent}${checkboxMatch[2]} [ ] `;
-        } else if (numberedMatch) {
-          nextPrefix = `${indent}${parseInt(numberedMatch[2]) + 1}. `;
-        } else {
-          nextPrefix = `${indent}${match[2]} `;
-        }
-        const insertion = '\n' + nextPrefix;
-        const newValue = target.value.substring(0, start) + insertion + target.value.substring(start);
-        onChange(newValue);
-        requestAnimationFrame(() => {
-          const newPos = start + insertion.length;
-          target.selectionStart = target.selectionEnd = newPos;
-        });
-        return;
-      }
-    }
-
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const target = e.currentTarget;
-      const start = target.selectionStart;
-      const end = target.selectionEnd;
-      const value = target.value;
-      const newValue = value.substring(0, start) + "  " + value.substring(end);
-      onChange(newValue);
-      requestAnimationFrame(() => {
-        target.selectionStart = target.selectionEnd = start + 2;
-      });
-    }
-  };
-
-  // Paste images as base64
-  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith('image/')) {
-        e.preventDefault();
-        const file = items[i].getAsFile();
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = reader.result as string;
-          const markdown = `![image](${base64})\n`;
-          const textarea = focusMode ? focusTextareaRef.current : textareaRef.current;
-          if (!textarea) return;
-          const start = textarea.selectionStart;
-          const newValue = textarea.value.substring(0, start) + markdown + textarea.value.substring(textarea.selectionEnd);
-          onChange(newValue);
-          requestAnimationFrame(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
-          });
-        };
-        reader.readAsDataURL(file);
-        showToast("Image pasted");
-        break;
-      }
-    }
-  };
-
-  // Synced scroll
-  const handleEditorScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
-    if (!previewRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollHeight <= clientHeight) return;
-    const ratio = scrollTop / (scrollHeight - clientHeight);
-    previewRef.current.scrollTop = ratio * (previewRef.current.scrollHeight - previewRef.current.clientHeight);
-  };
-
-  const insertFormat = (prefix: string, suffix: string = "") => {
-    const textarea = focusMode ? focusTextareaRef.current : textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = textarea.value.substring(start, end);
-    const replacement = prefix + (selected || "text") + (suffix || prefix);
-    const newValue = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
-    onChange(newValue);
-    requestAnimationFrame(() => {
-      textarea.selectionStart = start + prefix.length;
-      textarea.selectionEnd = start + prefix.length + (selected || "text").length;
-      textarea.focus();
-    });
-  };
+  const handleSelectionChange = useCallback((text: string) => {
+    setSelection(text);
+  }, []);
 
   const handleDownload = () => {
     const title = getTitle(note);
@@ -317,9 +166,7 @@ export default function Editor({
     showToast("Downloaded");
   };
 
-  const handlePdf = () => {
-    window.print();
-  };
+  const handlePdf = () => { window.print(); };
 
   const handleCopyContent = async () => {
     let content = note.content;
@@ -334,45 +181,26 @@ export default function Editor({
   useEffect(() => { noteContentRef.current = note.content; }, [note.content]);
 
   const handleAiInsert = useCallback((text: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      // Append to end if no textarea
-      onChange(noteContentRef.current + "\n\n" + text);
-      return;
+    const insert = getTiptapInsert();
+    if (insert) {
+      insert(text);
+      showToast("Inserted");
+    } else {
+      const c = noteContentRef.current;
+      const sep = c.endsWith("\n") || c === "" ? "" : "\n\n";
+      onChange(c + sep + text);
+      showToast("Inserted");
     }
-    const pos = textarea.selectionEnd || noteContentRef.current.length;
-    const before = noteContentRef.current.substring(0, pos);
-    const after = noteContentRef.current.substring(pos);
-    const separator = before.endsWith("\n") || before === "" ? "" : "\n\n";
-    onChange(before + separator + text + after);
-    showToast("Inserted");
   }, [onChange, showToast]);
-
-  const handleTocJump = useCallback((line: number) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const lines = textarea.value.split("\n");
-    let pos = 0;
-    for (let i = 0; i < line && i < lines.length; i++) {
-      pos += lines[i].length + 1;
-    }
-    textarea.selectionStart = textarea.selectionEnd = pos;
-    textarea.focus();
-    // Scroll textarea to position
-    const lineHeight = 24;
-    textarea.scrollTop = Math.max(0, line * lineHeight - textarea.clientHeight / 3);
-    setShowToc(false);
-  }, []);
 
   const wordCount = isCanvas
     ? (note.blocks || []).reduce((acc, b) => acc + getWordCount(b.content), 0)
     : getWordCount(note.content);
-
   const readingTime = getReadingTime(wordCount);
   const headings = useMemo(() => getHeadings(note.content), [note.content]);
   const noteColor = NOTE_COLORS[note.color];
 
-  // Presentation Mode
+  // ─── Presentation Mode ───
   if (presentationMode && !isCanvas) {
     return (
       <div className="presentation-mode" key={`pres-${noteKey}`}>
@@ -391,13 +219,13 @@ export default function Editor({
     );
   }
 
-  // Focus Mode (only for markdown)
+  // ─── Focus Mode ───
   if (focusMode && !isCanvas) {
     return (
       <div className="focus-mode" key={`focus-${noteKey}`}>
         <div className="ambient-circle" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
         <div className="flex items-center justify-between w-full max-w-3xl px-8 md:px-12 py-4">
-          <button onClick={() => setFocusMode(false)} className="toolbar-btn" title="Exit focus mode (Esc)">
+          <button onClick={() => setFocusMode(false)} className="toolbar-btn" title="Exit (Esc)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
@@ -407,45 +235,36 @@ export default function Editor({
             <span className="text-[11px] text-[var(--text-tertiary)] tabular-nums">{wordCount} words</span>
           </div>
         </div>
-        <div className="flex-1 w-full max-w-3xl px-8 md:px-12 overflow-hidden">
-          <textarea
-            ref={focusTextareaRef}
-            value={note.content}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            onSelect={handleSelectionChange}
+        <div className="flex-1 w-full max-w-3xl px-8 md:px-12 overflow-y-auto">
+          <TiptapEditor
+            content={note.content}
+            onChange={onChange}
+            onSelectionChange={handleSelectionChange}
             placeholder="Let your thoughts flow..."
-            className={`editor-textarea w-full h-full ${typewriterMode ? 'typewriter-mode' : ''}`}
-            spellCheck={false}
+            className="focus-tiptap"
+            autoFocus
           />
         </div>
-        {/* AI Panel */}
-        <AiPanel
-          open={showAi}
-          onClose={() => setShowAi(false)}
-          noteContent={note.content}
-          selection={selection}
-          onInsert={handleAiInsert}
-        />
+        <AiPanel open={showAi} onClose={() => setShowAi(false)} noteContent={note.content} selection={selection} onInsert={handleAiInsert} />
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 toast">{toast}</div>}
       </div>
     );
   }
 
+  // ─── Normal Editor ───
   return (
     <div className="flex flex-col h-full relative" key={`editor-${noteKey}`}>
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-5 md:px-8 py-1.5 border-b border-[var(--border-subtle)]" style={{ height: 'var(--toolbar-height)' }}>
-        {/* Back button (mobile) */}
-        <button onClick={onBack} className="toolbar-btn md:hidden" aria-label="Back to notes">
+      <div className="flex items-center gap-0.5 px-2 sm:px-4 md:px-6 py-1.5 border-b border-[var(--border-subtle)] overflow-x-auto scrollbar-hide" style={{ height: 'var(--toolbar-height)' }}>
+        {/* Back (mobile) */}
+        <button onClick={onBack} className="toolbar-btn md:hidden shrink-0" aria-label="Back">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
 
-        {/* Color indicator */}
-        <div className="relative ml-1" ref={colorPickerRef}>
+        {/* Color dot */}
+        <div className="relative shrink-0" ref={colorPickerRef}>
           <button onClick={() => setShowColorPicker(p => !p)} className="toolbar-btn" title="Note color">
             <div className="color-dot" style={{ background: noteColor.dot, width: 10, height: 10 }} />
           </button>
@@ -467,15 +286,15 @@ export default function Editor({
         </div>
 
         {/* Mode toggle */}
-        <div className="flex items-center gap-0.5 ml-1 pl-1 border-l border-[var(--border-subtle)]">
-          <button onClick={() => onModeChange('markdown')} className={`toolbar-btn ${!isCanvas ? 'active' : ''}`} title="Markdown mode">
+        <div className="flex items-center gap-0.5 shrink-0 ml-0.5 pl-0.5 border-l border-[var(--border-subtle)]">
+          <button onClick={() => onModeChange('markdown')} className={`toolbar-btn ${!isCanvas ? 'active' : ''}`} title="Markdown">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
               <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
             </svg>
           </button>
-          <button onClick={() => onModeChange('canvas')} className={`toolbar-btn ${isCanvas ? 'active' : ''}`} title="Canvas mode">
+          <button onClick={() => onModeChange('canvas')} className={`toolbar-btn ${isCanvas ? 'active' : ''}`} title="Canvas">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" />
               <rect x="3" y="14" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="7" rx="1" />
@@ -483,26 +302,9 @@ export default function Editor({
           </button>
         </div>
 
-        {/* Formatting (markdown only) */}
-        {!isCanvas && (
-          <div className="hidden sm:flex items-center gap-0.5 ml-1 pl-1 border-l border-[var(--border-subtle)]">
-            <button onClick={() => insertFormat("**")} className="toolbar-btn" title="Bold"><span className="text-xs font-bold">B</span></button>
-            <button onClick={() => insertFormat("*")} className="toolbar-btn" title="Italic"><span className="text-xs italic">I</span></button>
-            <button onClick={() => insertFormat("~~")} className="toolbar-btn" title="Strikethrough"><span className="text-xs line-through">S</span></button>
-            <button onClick={() => insertFormat("`")} className="toolbar-btn" title="Code">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
-              </svg>
-            </button>
-            <button onClick={() => insertFormat("### ", "\n")} className="toolbar-btn" title="Heading">
-              <span className="text-[10px] font-bold">H</span>
-            </button>
-          </div>
-        )}
-
-        {/* TOC button */}
+        {/* TOC */}
         {!isCanvas && headings.length > 0 && (
-          <div className="relative" ref={tocRef}>
+          <div className="relative shrink-0" ref={tocRef}>
             <button onClick={() => setShowToc(p => !p)} className={`toolbar-btn ${showToc ? 'active' : ''}`} title="Table of contents">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
@@ -513,12 +315,7 @@ export default function Editor({
               <div className="toc-panel">
                 <div className="px-3 pb-1.5 text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-medium">Contents</div>
                 {headings.map((h, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleTocJump(h.line)}
-                    className="toc-item"
-                    style={{ paddingLeft: `${12 + (h.level - 1) * 12}px` }}
-                  >
+                  <button key={i} className="toc-item" style={{ paddingLeft: `${12 + (h.level - 1) * 12}px` }}>
                     {h.text}
                   </button>
                 ))}
@@ -527,179 +324,135 @@ export default function Editor({
           </div>
         )}
 
+        {/* Spacer */}
+        <div className="flex-1 min-w-1" />
+
         {/* Right side */}
-        <div className="ml-auto flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0">
           {saved && (note.content || (note.blocks && note.blocks.length > 0)) && (
-            <span className="text-[10px] text-[var(--text-tertiary)] mr-1 animate-fade-in hidden sm:inline">saved</span>
+            <span className="text-[10px] text-[var(--text-tertiary)] mr-0.5 animate-fade-in hidden sm:inline">saved</span>
           )}
 
-          {/* AI button */}
-          <button
-            onClick={() => setShowAi(a => !a)}
-            className={`toolbar-btn ${showAi ? 'active' : ''}`}
-            title="AI assistant (Ctrl+J)"
-          >
+          {/* AI */}
+          <button onClick={() => setShowAi(a => !a)} className={`toolbar-btn ${showAi ? 'active' : ''}`} title="AI (Ctrl+J)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z" />
             </svg>
           </button>
 
+          {/* Desktop-only buttons */}
           {!isCanvas && (
-            <button
-              onClick={() => setShowPreview(p => !p)}
-              className={`toolbar-btn hidden md:flex ${showPreview ? 'active' : ''}`}
-              title="Toggle preview (Ctrl+P)"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
-          )}
-
-          {!isCanvas && (
-            <button onClick={() => setFocusMode(true)} className="toolbar-btn" title="Focus mode (Ctrl+Shift+F)">
+            <button onClick={() => setFocusMode(true)} className="toolbar-btn hidden sm:flex" title="Focus (Ctrl+Shift+F)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
               </svg>
             </button>
           )}
 
-          {!isCanvas && (
-            <button onClick={() => setPresentationMode(true)} className="toolbar-btn" title="Present">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
-              </svg>
-            </button>
-          )}
-
-          <button onClick={handleCopyContent} className="toolbar-btn" title="Copy content">
+          <button onClick={handleCopyContent} className="toolbar-btn hidden sm:flex" title="Copy">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
             </svg>
           </button>
 
-          <button onClick={handleDownload} className="toolbar-btn" title="Download .md">
+          <button onClick={handleDownload} className="toolbar-btn hidden sm:flex" title="Download">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
             </svg>
           </button>
 
-          <button onClick={onEmail} className="toolbar-btn" title="Email">
+          {/* Mobile overflow menu */}
+          <MobileMore
+            onFocus={() => setFocusMode(true)}
+            onPresent={() => setPresentationMode(true)}
+            onCopy={handleCopyContent}
+            onDownload={handleDownload}
+            onEmail={onEmail}
+            isCanvas={isCanvas}
+          />
+
+          <button onClick={onEmail} className="toolbar-btn hidden sm:flex" title="Email">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
               <polyline points="22,6 12,13 2,6" />
             </svg>
           </button>
 
-          <button onClick={handlePdf} className="toolbar-btn hidden md:flex" title="Print / PDF">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-              <rect x="6" y="14" width="12" height="8" />
-            </svg>
-          </button>
-
-          <div className="hidden sm:flex items-center gap-1.5 ml-1.5 pl-1.5 border-l border-[var(--border-subtle)]">
+          <div className="hidden sm:flex items-center gap-1.5 ml-1 pl-1 border-l border-[var(--border-subtle)]">
             <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">{wordCount}w</span>
             <span className="text-[10px] text-[var(--text-tertiary)]">{readingTime}</span>
           </div>
         </div>
       </div>
 
-      {/* Content area */}
-      <div className="flex-1 flex overflow-hidden animate-note-enter">
+      {/* ─── Content ─── */}
+      <div className="flex-1 overflow-hidden animate-note-enter">
         {isCanvas ? (
           <Canvas blocks={note.blocks || []} onChange={onBlocksChange} noteColor={note.color} />
         ) : (
-          <>
-            {/* Desktop: side by side */}
-            <div className={`hidden md:block ${showPreview ? 'w-1/2' : 'w-full'} h-full overflow-hidden`}>
-              <textarea
-                ref={textareaRef}
-                value={note.content}
-                onChange={(e) => onChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                onScroll={handleEditorScroll}
-                onSelect={handleSelectionChange}
+          <div className="h-full overflow-y-auto" style={{ background: NOTE_COLORS[note.color].bg }}>
+            <div className="tiptap-wrapper px-5 py-5 sm:px-8 md:px-14 lg:px-20 md:py-10">
+              <TiptapEditor
+                content={note.content}
+                onChange={onChange}
+                onSelectionChange={handleSelectionChange}
                 placeholder="Start writing..."
-                className={`editor-textarea w-full h-full p-8 md:p-14 lg:p-20 ${typewriterMode ? 'typewriter-mode' : ''}`}
-                spellCheck={false}
+                autoFocus
               />
             </div>
-
-            {showPreview && <div className="divider-vertical hidden md:block" />}
-
-            {showPreview && (
-              <div
-                ref={previewRef}
-                className="hidden md:block w-1/2 h-full overflow-y-auto p-8 md:p-14 lg:p-20"
-                style={{ background: NOTE_COLORS[note.color].bg }}
-              >
-                <MarkdownPreview content={note.content} />
-              </div>
-            )}
-
-            {/* Mobile: write or read tab */}
-            <div className="md:hidden w-full h-full overflow-hidden">
-              {mobileTab === "write" ? (
-                <textarea
-                  value={note.content}
-                  onChange={(e) => onChange(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onPaste={handlePaste}
-                  onSelect={handleSelectionChange}
-                  placeholder="Start writing..."
-                  className={`editor-textarea w-full h-full p-6 sm:p-8 ${typewriterMode ? 'typewriter-mode' : ''}`}
-                  spellCheck={false}
-                />
-              ) : (
-                <div className="h-full overflow-y-auto p-6 sm:p-8" style={{ background: NOTE_COLORS[note.color].bg }}>
-                  <MarkdownPreview content={note.content} />
-                </div>
-              )}
-            </div>
-          </>
+          </div>
         )}
       </div>
 
-      {/* Mobile toggle bar (markdown only) */}
-      {!isCanvas && (
-        <div className="flex md:hidden items-center justify-between px-5 py-2.5 border-t border-[var(--border-subtle)]">
-          <div className="flex items-center gap-1 bg-[var(--bg-secondary)] rounded-lg p-0.5">
-            <button
-              onClick={() => setMobileTab("write")}
-              className={`px-3 py-1 text-xs rounded-md transition-all ${mobileTab === "write" ? 'bg-[var(--bg-hover)] text-[var(--text)]' : 'text-[var(--text-tertiary)]'}`}
-            >
-              Write
-            </button>
-            <button
-              onClick={() => setMobileTab("read")}
-              className={`px-3 py-1 text-xs rounded-md transition-all ${mobileTab === "read" ? 'bg-[var(--bg-hover)] text-[var(--text)]' : 'text-[var(--text-tertiary)]'}`}
-            >
-              Read
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            {saved && note.content && (
-              <span className="text-[10px] text-[var(--text-tertiary)] animate-fade-in">saved</span>
-            )}
-            <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">{wordCount}w</span>
-          </div>
-        </div>
-      )}
+      {/* Mobile bottom bar — just word count, no Write/Read toggle */}
+      <div className="flex sm:hidden items-center justify-end gap-2 px-5 py-2 border-t border-[var(--border-subtle)]">
+        {saved && note.content && (
+          <span className="text-[10px] text-[var(--text-tertiary)] animate-fade-in">saved</span>
+        )}
+        <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">{wordCount}w</span>
+      </div>
 
       {/* AI Panel */}
-      <AiPanel
-        open={showAi}
-        onClose={() => setShowAi(false)}
-        noteContent={note.content}
-        selection={selection}
-        onInsert={handleAiInsert}
-      />
+      <AiPanel open={showAi} onClose={() => setShowAi(false)} noteContent={note.content} selection={selection} onInsert={handleAiInsert} />
 
       {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 z-40 toast">{toast}</div>
+      {toast && <div className="fixed bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 z-40 toast">{toast}</div>}
+    </div>
+  );
+}
+
+// ─── Mobile overflow "⋮" menu ───
+function MobileMore({ onFocus, onPresent, onCopy, onDownload, onEmail, isCanvas }: {
+  onFocus: () => void; onPresent: () => void; onCopy: () => void;
+  onDownload: () => void; onEmail: () => void; isCanvas: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const act = (fn: () => void) => { fn(); setOpen(false); };
+
+  return (
+    <div ref={ref} className="sm:hidden relative">
+      <button onClick={() => setOpen(o => !o)} className="toolbar-btn" title="More">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-30 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-lg overflow-hidden animate-fade-in min-w-[160px]">
+          {!isCanvas && <button onClick={() => act(onFocus)} className="more-menu-item">Focus mode</button>}
+          {!isCanvas && <button onClick={() => act(onPresent)} className="more-menu-item">Present</button>}
+          <button onClick={() => act(onCopy)} className="more-menu-item">Copy</button>
+          <button onClick={() => act(onDownload)} className="more-menu-item">Download .md</button>
+          <button onClick={() => act(onEmail)} className="more-menu-item">Email</button>
+        </div>
       )}
     </div>
   );
