@@ -255,7 +255,7 @@ export default function Editor({
   return (
     <div className="flex flex-col h-full relative" key={`editor-${noteKey}`}>
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-2 sm:px-4 md:px-6 py-1.5 border-b border-[var(--border-subtle)] overflow-x-auto scrollbar-hide" style={{ height: 'var(--toolbar-height)' }}>
+      <div className="flex items-center gap-0.5 px-2 sm:px-4 md:px-6 py-1.5 border-b border-[var(--border-subtle)]" style={{ height: 'var(--toolbar-height)' }}>
         {/* Back (mobile) */}
         <button onClick={onBack} className="toolbar-btn md:hidden shrink-0" aria-label="Back">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -269,7 +269,7 @@ export default function Editor({
             <div className="color-dot" style={{ background: noteColor.dot, width: 10, height: 10 }} />
           </button>
           {showColorPicker && (
-            <div className="absolute top-full left-0 mt-1 p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-lg z-30 animate-fade-in">
+            <div className="absolute top-full left-0 z-50 mt-1 p-2.5 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-lg animate-fade-in">
               <div className="flex gap-2">
                 {(Object.keys(NOTE_COLORS) as NoteColor[]).map(c => (
                   <button
@@ -407,7 +407,7 @@ export default function Editor({
       </div>
 
       {/* Mobile bottom bar */}
-      <div className="flex sm:hidden items-center justify-end gap-3 px-6 py-2.5 border-t border-[var(--border-subtle)]">
+      <div className="flex sm:hidden items-center justify-end gap-3 px-6 pr-8 py-2.5 border-t border-[var(--border-subtle)]">
         {saved && note.content && (
           <span className="text-[11px] text-[var(--text-tertiary)] animate-fade-in">saved</span>
         )}
