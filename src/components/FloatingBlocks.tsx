@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { FloatingBlock } from "@/lib/types";
 import { genId } from "@/lib/notes";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Props {
   blocks: FloatingBlock[];
@@ -154,7 +156,7 @@ export default function FloatingBlocks({ blocks, onChange, containerRef }: Props
           ) : (
             <div className="floating-block-content" onClick={() => setEditingId(block.id)}>
               {block.content.trim()
-                ? <pre className="whitespace-pre-wrap text-sm leading-relaxed">{block.content}</pre>
+                ? <div className="floating-block-md"><ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown></div>
                 : <span className="text-[var(--text-tertiary)] text-sm italic">Empty</span>
               }
             </div>
