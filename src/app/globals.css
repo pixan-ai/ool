@@ -266,32 +266,31 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   user-select: none; cursor: grab;
 }
 .floating-block:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
-.floating-block.editing { cursor: default; border-color: var(--accent); box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
 .floating-block.dragging { cursor: grabbing; opacity: 0.9; box-shadow: 0 8px 32px rgba(0,0,0,0.25); z-index: 20; }
 .floating-block-handle {
   display: flex; align-items: center; justify-content: center;
   padding: 4px 0 2px; cursor: grab; color: var(--text-tertiary);
 }
 .floating-block-handle:active { cursor: grabbing; }
-.floating-block-textarea {
-  display: block; width: 100%; border: none; outline: none;
-  background: transparent; color: var(--text); font-family: inherit;
-  font-size: 13px; line-height: 1.6; padding: 0 10px 10px; resize: none;
+.floating-block-editor { padding: 0 10px 8px; }
+.floating-block-editor .block-editor { outline: none; font-size: 13px; line-height: 1.6; color: var(--text); }
+.floating-block-editor .block-editor h1 { font-size: 1.25em; font-weight: 700; margin: 0 0 0.2em; }
+.floating-block-editor .block-editor h2 { font-size: 1.1em; font-weight: 600; margin: 0 0 0.2em; }
+.floating-block-editor .block-editor h3 { font-size: 1em; font-weight: 600; margin: 0 0 0.15em; }
+.floating-block-editor .block-editor p { margin: 0 0 0.3em; }
+.floating-block-editor .block-editor p:last-child { margin: 0; }
+.floating-block-editor .block-editor ul, .floating-block-editor .block-editor ol { margin: 0 0 0.3em; padding-left: 1.2em; }
+.floating-block-editor .block-editor ul li { list-style: disc; }
+.floating-block-editor .block-editor ol li { list-style: decimal; }
+.floating-block-editor .block-editor code { font-size: 0.85em; background: var(--bg-secondary); padding: 1px 4px; border-radius: 3px; }
+.floating-block-editor .block-editor pre { background: var(--bg-secondary); padding: 8px; border-radius: 6px; overflow-x: auto; margin: 0.3em 0; }
+.floating-block-editor .block-editor strong { font-weight: 600; }
+.floating-block-editor .block-editor a { color: var(--accent); text-decoration: underline; }
+.floating-block-editor .block-editor ul[data-type="taskList"] { padding-left: 0; }
+.floating-block-editor .block-editor ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 6px; list-style: none; }
+.floating-block-editor .block-editor .is-editor-empty:first-child::before {
+  content: attr(data-placeholder); color: var(--text-tertiary); float: left; height: 0; pointer-events: none;
 }
-.floating-block-content {
-  padding: 0 10px 10px; cursor: text; min-height: 24px;
-  color: var(--text); font-size: 13px; line-height: 1.6;
-}
-.floating-block-md h1 { font-size: 1.25em; font-weight: 700; margin: 0 0 0.3em; }
-.floating-block-md h2 { font-size: 1.1em; font-weight: 600; margin: 0 0 0.3em; }
-.floating-block-md h3 { font-size: 1em; font-weight: 600; margin: 0 0 0.2em; }
-.floating-block-md p { margin: 0 0 0.4em; }
-.floating-block-md p:last-child { margin: 0; }
-.floating-block-md ul, .floating-block-md ol { margin: 0 0 0.4em; padding-left: 1.2em; }
-.floating-block-md code { font-size: 0.85em; background: var(--bg-secondary); padding: 1px 4px; border-radius: 3px; }
-.floating-block-md pre { background: var(--bg-secondary); padding: 8px; border-radius: 6px; overflow-x: auto; margin: 0.4em 0; }
-.floating-block-md strong { font-weight: 600; }
-.floating-block-md a { color: var(--accent); text-decoration: underline; }
 .light .floating-block { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
 .light .floating-block:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
 
