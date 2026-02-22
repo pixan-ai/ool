@@ -1,209 +1,88 @@
-import { Note, NoteColor, CanvasBlock, SortMode } from "./types";
+import { Note, NoteColor, SortMode } from "./types";
 
-const STORAGE_KEY = "ool-notes";
-
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
-
-export { generateId };
+const KEY = "ool-notes";
+const id = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 export function loadNotes(): Note[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const notes = JSON.parse(raw) as Note[];
-    return notes.map(n => ({
-      ...n,
-      color: n.color || 'stone',
-      mode: n.mode || 'markdown',
-      pinned: n.pinned || false,
-    }));
-  } catch {
-    return [];
-  }
+    const raw = localStorage.getItem(KEY);
+    return raw ? (JSON.parse(raw) as Note[]).map(n => ({
+      ...n, color: n.color || "stone", pinned: n.pinned || false,
+    })) : [];
+  } catch { return []; }
 }
 
-function saveNotes(notes: Note[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-}
+function save(notes: Note[]) { localStorage.setItem(KEY, JSON.stringify(notes)); }
 
-export function createNote(color: NoteColor = 'stone'): Note {
-  const notes = loadNotes();
-  const note: Note = {
-    id: generateId(),
-    content: "",
-    color,
-    mode: 'markdown',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-  notes.unshift(note);
-  saveNotes(notes);
+export function createNote(color: NoteColor = "stone"): Note {
+  const note: Note = { id: id(), content: "", color, pinned: false, createdAt: Date.now(), updatedAt: Date.now() };
+  save([note, ...loadNotes()]);
   return note;
 }
 
-export function importNote(content: string, color: NoteColor = 'stone'): Note {
+export function updateNote(noteId: string, patch: Partial<Pick<Note, "content" | "color" | "pinned">>): Note | null {
   const notes = loadNotes();
-  const note: Note = {
-    id: generateId(),
-    content,
-    color,
-    mode: 'markdown',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-  notes.unshift(note);
-  saveNotes(notes);
+  const i = notes.findIndex(n => n.id === noteId);
+  if (i === -1) return null;
+  notes[i] = { ...notes[i], ...patch, updatedAt: Date.now() };
+  save(notes);
+  return notes[i];
+}
+
+export function deleteNote(noteId: string) {
+  save(loadNotes().filter(n => n.id !== noteId));
+}
+
+export function importNote(content: string, color: NoteColor = "stone"): Note {
+  const note: Note = { id: id(), content, color, pinned: false, createdAt: Date.now(), updatedAt: Date.now() };
+  save([note, ...loadNotes()]);
   return note;
-}
-
-export function updateNote(id: string, content: string): Note | null {
-  const notes = loadNotes();
-  const index = notes.findIndex((n) => n.id === id);
-  if (index === -1) return null;
-  notes[index].content = content;
-  notes[index].updatedAt = Date.now();
-  saveNotes(notes);
-  return notes[index];
-}
-
-export function updateNoteColor(id: string, color: NoteColor): Note | null {
-  const notes = loadNotes();
-  const index = notes.findIndex((n) => n.id === id);
-  if (index === -1) return null;
-  notes[index].color = color;
-  notes[index].updatedAt = Date.now();
-  saveNotes(notes);
-  return notes[index];
-}
-
-export function updateNoteMode(id: string, mode: 'markdown' | 'canvas'): Note | null {
-  const notes = loadNotes();
-  const index = notes.findIndex((n) => n.id === id);
-  if (index === -1) return null;
-  notes[index].mode = mode;
-  notes[index].updatedAt = Date.now();
-  saveNotes(notes);
-  return notes[index];
-}
-
-export function updateNoteBlocks(id: string, blocks: CanvasBlock[]): Note | null {
-  const notes = loadNotes();
-  const index = notes.findIndex((n) => n.id === id);
-  if (index === -1) return null;
-  notes[index].blocks = blocks;
-  notes[index].updatedAt = Date.now();
-  saveNotes(notes);
-  return notes[index];
-}
-
-export function togglePin(id: string): Note | null {
-  const notes = loadNotes();
-  const index = notes.findIndex((n) => n.id === id);
-  if (index === -1) return null;
-  notes[index].pinned = !notes[index].pinned;
-  notes[index].updatedAt = Date.now();
-  saveNotes(notes);
-  return notes[index];
-}
-
-export function deleteNote(id: string): void {
-  const notes = loadNotes();
-  saveNotes(notes.filter((n) => n.id !== id));
 }
 
 export function getTitle(note: Note): string {
-  if (note.mode === 'canvas' && note.blocks?.length) {
-    const first = note.blocks[0].content.split("\n")[0]?.trim();
-    if (first) return first.replace(/^#+\s*/, "") || "Canvas";
-    return "Canvas";
-  }
-  const firstLine = note.content.split("\n")[0]?.trim();
-  if (!firstLine) return "Untitled";
-  return firstLine.replace(/^#+\s*/, "") || "Untitled";
+  const line = note.content.split("\n").find(l => l.trim());
+  if (!line) return "Untitled";
+  return line.replace(/^#+\s*/, "").replace(/\*\*/g, "").replace(/[*_~`]/g, "").trim().slice(0, 60) || "Untitled";
 }
 
 export function getPreview(note: Note): string {
-  if (note.mode === 'canvas') {
-    const count = note.blocks?.length || 0;
-    return count > 0 ? `${count} block${count !== 1 ? 's' : ''}` : "";
-  }
-  const lines = note.content.split("\n").filter((l) => l.trim());
-  const second = lines[1]?.trim() || "";
-  return second.replace(/[#*_~`>\-[\]()]/g, "").trim() || "";
+  const lines = note.content.split("\n").filter(l => l.trim());
+  return (lines[1] || lines[0] || "").replace(/[#*_~`>\-[\]()]/g, "").trim().slice(0, 100);
 }
 
-export function formatDate(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m`;
-  if (hours < 24) return `${hours}h`;
-  if (days < 7) return `${days}d`;
-  return new Date(timestamp).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+export function formatDate(ts: number): string {
+  const d = new Date(ts), now = new Date(), diff = now.getTime() - d.getTime();
+  if (diff < 60000) return "just now";
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) });
 }
 
-export function getWordCount(content: string): number {
-  return content.trim() ? content.trim().split(/\s+/).length : 0;
+export const getWordCount = (s: string) => s.trim() ? s.trim().split(/\s+/).length : 0;
+export const getReadingTime = (w: number) => w < 200 ? "<1 min" : `${Math.ceil(w / 200)} min`;
+
+export function getHeadings(content: string) {
+  return content.split("\n").map((l, i) => {
+    const m = l.match(/^(#{1,4})\s+(.+)/);
+    return m ? { level: m[1].length, text: m[2].trim(), line: i } : null;
+  }).filter(Boolean) as { level: number; text: string; line: number }[];
 }
 
-export function getCharCount(content: string): number {
-  return content.length;
-}
-
-export function getReadingTime(wordCount: number): string {
-  const minutes = Math.max(1, Math.ceil(wordCount / 200));
-  return `${minutes} min read`;
-}
-
-export function getHeadings(content: string): { level: number; text: string; line: number }[] {
-  const lines = content.split("\n");
-  const headings: { level: number; text: string; line: number }[] = [];
-  lines.forEach((line, i) => {
-    const match = line.match(/^(#{1,6})\s+(.+)/);
-    if (match) {
-      headings.push({ level: match[1].length, text: match[2].trim(), line: i });
-    }
-  });
-  return headings;
-}
-
-export function searchNotes(notes: Note[], query: string): Note[] {
-  if (!query.trim()) return notes;
-  const q = query.toLowerCase();
-  return notes.filter(n => {
-    if (n.content.toLowerCase().includes(q)) return true;
-    if (n.blocks?.some(b => b.content.toLowerCase().includes(q))) return true;
-    return false;
-  });
+export function searchNotes(notes: Note[], q: string): Note[] {
+  const lower = q.toLowerCase();
+  return notes.filter(n => n.content.toLowerCase().includes(lower));
 }
 
 export function sortNotes(notes: Note[], mode: SortMode): Note[] {
-  const sorted = [...notes];
-  switch (mode) {
-    case 'date':
-      sorted.sort((a, b) => b.updatedAt - a.updatedAt);
-      break;
-    case 'title':
-      sorted.sort((a, b) => getTitle(a).localeCompare(getTitle(b)));
-      break;
-    case 'color': {
-      const colorOrder = ['stone', 'bamboo', 'sakura', 'sumi', 'kincha', 'sora', 'fuji'];
-      sorted.sort((a, b) => colorOrder.indexOf(a.color) - colorOrder.indexOf(b.color));
-      break;
-    }
-  }
-  // Pinned notes always on top
-  const pinned = sorted.filter(n => n.pinned);
-  const unpinned = sorted.filter(n => !n.pinned);
-  return [...pinned, ...unpinned];
+  const pinned = notes.filter(n => n.pinned), unpinned = notes.filter(n => !n.pinned);
+  const colorOrder = ["stone", "green", "red", "pink", "grey", "sand", "sky", "lavender"];
+  const sorters: Record<SortMode, (a: Note, b: Note) => number> = {
+    modified: (a, b) => b.updatedAt - a.updatedAt,
+    created: (a, b) => b.createdAt - a.createdAt,
+    alpha: (a, b) => getTitle(a).localeCompare(getTitle(b)),
+    color: (a, b) => colorOrder.indexOf(a.color) - colorOrder.indexOf(b.color),
+  };
+  return [...pinned.sort(sorters[mode]), ...unpinned.sort(sorters[mode])];
 }

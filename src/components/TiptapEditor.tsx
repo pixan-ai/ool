@@ -12,171 +12,96 @@ import { useEffect, useRef, useCallback } from "react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-interface Props {
-  content: string; // markdown string
-  onChange: (markdown: string) => void;
-  onSelectionChange?: (text: string) => void;
-  placeholder?: string;
-  className?: string;
-  editable?: boolean;
-  autoFocus?: boolean;
-}
-
-// Helper to get markdown from editor storage
-function getMarkdown(editor: any): string {
-  try {
-    return editor.storage.markdown.getMarkdown();
-  } catch {
-    return editor.getText();
-  }
-}
+const getMd = (e: any): string => { try { return e.storage.markdown.getMarkdown(); } catch { return e.getText(); } };
 
 export default function TiptapEditor({
-  content,
-  onChange,
-  onSelectionChange,
-  placeholder = "Start writing...",
-  className = "",
-  editable = true,
-  autoFocus = false,
-}: Props) {
-  const isExternalUpdate = useRef(false);
-  const lastContentRef = useRef(content);
-  const isInitialized = useRef(false);
+  content, onChange, onSelectionChange, placeholder = "Start writing...", autoFocus = false,
+}: {
+  content: string; onChange: (md: string) => void; onSelectionChange?: (text: string) => void;
+  placeholder?: string; autoFocus?: boolean;
+}) {
+  const ext = useRef(false);
+  const last = useRef(content);
+  const init = useRef(false);
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4] },
-        codeBlock: {
-          HTMLAttributes: { class: "code-block" },
-        },
-        bulletList: { keepMarks: true, keepAttributes: false },
-        orderedList: { keepMarks: true, keepAttributes: false },
-      }),
-      Placeholder.configure({
-        placeholder,
-        emptyEditorClass: "is-editor-empty",
-      }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Link.configure({
-        openOnClick: true,
-        autolink: true,
-        HTMLAttributes: { class: "tiptap-link" },
-      }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3, 4] }, bulletList: { keepMarks: true }, orderedList: { keepMarks: true } }),
+      Placeholder.configure({ placeholder, emptyEditorClass: "is-editor-empty" }),
+      TaskList, TaskItem.configure({ nested: true }),
+      Link.configure({ openOnClick: true, autolink: true }),
       Image.configure({ inline: true, allowBase64: true }),
-      Markdown.configure({
-        html: true,
-        tightLists: true,
-        bulletListMarker: "-",
-        transformPastedText: true,
-        transformCopiedText: true,
-      }),
+      Markdown.configure({ html: true, tightLists: true, bulletListMarker: "-", transformPastedText: true, transformCopiedText: true }),
     ],
-    // Start empty — we set markdown content in the effect below
     content: "",
-    editable,
-    autofocus: false,
-    editorProps: {
-      attributes: {
-        class: `tiptap-editor ${className}`,
-      },
-    },
+    editorProps: { attributes: { class: "tiptap-editor" } },
     onUpdate: ({ editor }) => {
-      if (isExternalUpdate.current) return;
-      const md = getMarkdown(editor);
-      lastContentRef.current = md;
+      if (ext.current) return;
+      const md = getMd(editor);
+      last.current = md;
       onChange(md);
     },
     onSelectionUpdate: ({ editor }) => {
       if (!onSelectionChange) return;
       const { from, to } = editor.state.selection;
-      if (from !== to) {
-        onSelectionChange(editor.state.doc.textBetween(from, to, " "));
-      } else {
-        onSelectionChange("");
-      }
+      onSelectionChange(from !== to ? editor.state.doc.textBetween(from, to, " ") : "");
     },
   });
 
-  // Set initial markdown content AFTER editor is created
-  // This ensures the Markdown extension is ready to parse
+  // Init: set markdown after editor ready
   useEffect(() => {
-    if (!editor || isInitialized.current) return;
-    isInitialized.current = true;
-
+    if (!editor || init.current) return;
+    init.current = true;
     if (content) {
-      isExternalUpdate.current = true;
+      ext.current = true;
       editor.commands.setContent(content);
-      lastContentRef.current = content;
-      isExternalUpdate.current = false;
-
-      // Auto-focus at end if requested
-      if (autoFocus) {
-        requestAnimationFrame(() => {
-          editor.commands.focus("end");
-        });
-      }
-    } else if (autoFocus) {
-      editor.commands.focus();
-    }
+      last.current = content;
+      ext.current = false;
+      if (autoFocus) requestAnimationFrame(() => editor.commands.focus("end"));
+    } else if (autoFocus) editor.commands.focus();
   }, [editor, content, autoFocus]);
 
-  // Sync external content changes (note switch, AI insert)
+  // Sync external changes (note switch)
   useEffect(() => {
-    if (!editor || !isInitialized.current) return;
-    if (content === lastContentRef.current) return;
-
-    isExternalUpdate.current = true;
-    lastContentRef.current = content;
+    if (!editor || !init.current || content === last.current) return;
+    ext.current = true;
+    last.current = content;
     editor.commands.setContent(content);
-    isExternalUpdate.current = false;
+    ext.current = false;
   }, [content, editor]);
 
-  // Handle paste images
+  // Paste images as base64
   useEffect(() => {
     if (!editor) return;
-
-    const handlePaste = (event: ClipboardEvent) => {
-      const items = event.clipboardData?.items;
+    const h = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
       if (!items) return;
-
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.startsWith("image/")) {
-          event.preventDefault();
+          e.preventDefault();
           const file = items[i].getAsFile();
           if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = () => {
-            editor.chain().focus().setImage({ src: reader.result as string }).run();
-          };
-          reader.readAsDataURL(file);
+          const r = new FileReader();
+          r.onload = () => editor.chain().focus().setImage({ src: r.result as string }).run();
+          r.readAsDataURL(file);
           break;
         }
       }
     };
-
-    const dom = editor.view.dom;
-    dom.addEventListener("paste", handlePaste);
-    return () => dom.removeEventListener("paste", handlePaste);
+    editor.view.dom.addEventListener("paste", h);
+    return () => editor.view.dom.removeEventListener("paste", h);
   }, [editor]);
 
-  // Expose insert function for AI panel
-  const insertText = useCallback(
-    (text: string) => {
-      if (!editor) return;
-      const currentMd = getMarkdown(editor);
-      const separator = currentMd.endsWith("\n") || currentMd === "" ? "" : "\n\n";
-      const newContent = currentMd + separator + text;
-      lastContentRef.current = newContent;
-      editor.commands.setContent(newContent);
-      editor.commands.focus("end");
-      onChange(newContent);
-    },
-    [editor, onChange]
-  );
+  // Expose insert for AI panel
+  const insertText = useCallback((text: string) => {
+    if (!editor) return;
+    const cur = getMd(editor);
+    const newContent = cur + (cur.endsWith("\n") || !cur ? "" : "\n\n") + text;
+    last.current = newContent;
+    editor.commands.setContent(newContent);
+    editor.commands.focus("end");
+    onChange(newContent);
+  }, [editor, onChange]);
 
   useEffect(() => {
     (window as any).__tiptapInsert = insertText;
@@ -184,11 +109,9 @@ export default function TiptapEditor({
   }, [insertText]);
 
   if (!editor) return null;
-
   return <EditorContent editor={editor} />;
 }
 
-// Helper for external access to insert function
 export function getTiptapInsert(): ((text: string) => void) | null {
   return (window as any).__tiptapInsert || null;
 }
