@@ -10,6 +10,8 @@ import Image from "@tiptap/extension-image";
 import { Markdown } from "tiptap-markdown";
 import { useEffect, useRef, useCallback } from "react";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 interface Props {
   content: string; // markdown string
   onChange: (markdown: string) => void;
@@ -18,6 +20,15 @@ interface Props {
   className?: string;
   editable?: boolean;
   autoFocus?: boolean;
+}
+
+// Helper to get markdown from editor storage
+function getMarkdown(editor: any): string {
+  try {
+    return editor.storage.markdown.getMarkdown();
+  } catch {
+    return editor.getText();
+  }
 }
 
 export default function TiptapEditor({
@@ -31,6 +42,7 @@ export default function TiptapEditor({
 }: Props) {
   const isExternalUpdate = useRef(false);
   const lastContentRef = useRef(content);
+  const isInitialized = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -39,34 +51,21 @@ export default function TiptapEditor({
         codeBlock: {
           HTMLAttributes: { class: "code-block" },
         },
-        bulletList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        orderedList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
+        bulletList: { keepMarks: true, keepAttributes: false },
+        orderedList: { keepMarks: true, keepAttributes: false },
       }),
       Placeholder.configure({
         placeholder,
         emptyEditorClass: "is-editor-empty",
       }),
       TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
+      TaskItem.configure({ nested: true }),
       Link.configure({
         openOnClick: true,
         autolink: true,
-        HTMLAttributes: {
-          class: "tiptap-link",
-        },
+        HTMLAttributes: { class: "tiptap-link" },
       }),
-      Image.configure({
-        inline: true,
-        allowBase64: true,
-      }),
+      Image.configure({ inline: true, allowBase64: true }),
       Markdown.configure({
         html: true,
         tightLists: true,
@@ -75,9 +74,10 @@ export default function TiptapEditor({
         transformCopiedText: true,
       }),
     ],
-    content,
+    // Start empty — we set markdown content in the effect below
+    content: "",
     editable,
-    autofocus: autoFocus ? "end" : false,
+    autofocus: false,
     editorProps: {
       attributes: {
         class: `tiptap-editor ${className}`,
@@ -85,7 +85,7 @@ export default function TiptapEditor({
     },
     onUpdate: ({ editor }) => {
       if (isExternalUpdate.current) return;
-      const md = (editor.storage as unknown as Record<string, { getMarkdown: () => string }>).markdown.getMarkdown();
+      const md = getMarkdown(editor);
       lastContentRef.current = md;
       onChange(md);
     },
@@ -93,37 +93,44 @@ export default function TiptapEditor({
       if (!onSelectionChange) return;
       const { from, to } = editor.state.selection;
       if (from !== to) {
-        const text = editor.state.doc.textBetween(from, to, " ");
-        onSelectionChange(text);
+        onSelectionChange(editor.state.doc.textBetween(from, to, " "));
       } else {
         onSelectionChange("");
       }
     },
   });
 
-  // Sync external content changes (e.g. AI insert, note switch)
+  // Set initial markdown content AFTER editor is created
+  // This ensures the Markdown extension is ready to parse
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || isInitialized.current) return;
+    isInitialized.current = true;
+
+    if (content) {
+      isExternalUpdate.current = true;
+      editor.commands.setContent(content);
+      lastContentRef.current = content;
+      isExternalUpdate.current = false;
+
+      // Auto-focus at end if requested
+      if (autoFocus) {
+        requestAnimationFrame(() => {
+          editor.commands.focus("end");
+        });
+      }
+    } else if (autoFocus) {
+      editor.commands.focus();
+    }
+  }, [editor, content, autoFocus]);
+
+  // Sync external content changes (note switch, AI insert)
+  useEffect(() => {
+    if (!editor || !isInitialized.current) return;
     if (content === lastContentRef.current) return;
 
     isExternalUpdate.current = true;
     lastContentRef.current = content;
-
-    // Preserve cursor position when possible
-    const { from, to } = editor.state.selection;
     editor.commands.setContent(content);
-
-    // Try to restore cursor
-    const docSize = editor.state.doc.content.size;
-    const safeFrom = Math.min(from, docSize);
-    const safeTo = Math.min(to, docSize);
-    try {
-      editor.commands.setTextSelection({ from: safeFrom, to: safeTo });
-    } catch {
-      // If position is invalid, move to end
-      editor.commands.setTextSelection(docSize);
-    }
-
     isExternalUpdate.current = false;
   }, [content, editor]);
 
@@ -143,8 +150,7 @@ export default function TiptapEditor({
 
           const reader = new FileReader();
           reader.onload = () => {
-            const base64 = reader.result as string;
-            editor.chain().focus().setImage({ src: base64 }).run();
+            editor.chain().focus().setImage({ src: reader.result as string }).run();
           };
           reader.readAsDataURL(file);
           break;
@@ -152,38 +158,29 @@ export default function TiptapEditor({
       }
     };
 
-    const editorElement = editor.view.dom;
-    editorElement.addEventListener("paste", handlePaste);
-    return () => editorElement.removeEventListener("paste", handlePaste);
+    const dom = editor.view.dom;
+    dom.addEventListener("paste", handlePaste);
+    return () => dom.removeEventListener("paste", handlePaste);
   }, [editor]);
 
-  // Expose editor commands via ref-like pattern
+  // Expose insert function for AI panel
   const insertText = useCallback(
     (text: string) => {
       if (!editor) return;
-      // Insert markdown at cursor position
-      const { from } = editor.state.selection;
-      const currentMd = (editor.storage as unknown as Record<string, { getMarkdown: () => string }>).markdown.getMarkdown();
-      const lines = currentMd.split("\n");
-
-      // Simple approach: append with separator
+      const currentMd = getMarkdown(editor);
       const separator = currentMd.endsWith("\n") || currentMd === "" ? "" : "\n\n";
       const newContent = currentMd + separator + text;
       lastContentRef.current = newContent;
       editor.commands.setContent(newContent);
-      // Move cursor to end
-      editor.commands.setTextSelection(editor.state.doc.content.size);
+      editor.commands.focus("end");
       onChange(newContent);
     },
     [editor, onChange]
   );
 
-  // Attach insertText to window for external access
   useEffect(() => {
-    (window as unknown as Record<string, unknown>).__tiptapInsert = insertText;
-    return () => {
-      delete (window as unknown as Record<string, unknown>).__tiptapInsert;
-    };
+    (window as any).__tiptapInsert = insertText;
+    return () => { delete (window as any).__tiptapInsert; };
   }, [insertText]);
 
   if (!editor) return null;
@@ -191,7 +188,7 @@ export default function TiptapEditor({
   return <EditorContent editor={editor} />;
 }
 
-// Helper to get editor insert function
+// Helper for external access to insert function
 export function getTiptapInsert(): ((text: string) => void) | null {
-  return ((window as unknown as Record<string, unknown>).__tiptapInsert as (text: string) => void) || null;
+  return (window as any).__tiptapInsert || null;
 }

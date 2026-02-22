@@ -333,31 +333,10 @@ export default function Editor({
             <span className="text-[10px] text-[var(--text-tertiary)] mr-0.5 animate-fade-in hidden sm:inline">saved</span>
           )}
 
-          {/* AI */}
+          {/* AI — always visible */}
           <button onClick={() => setShowAi(a => !a)} className={`toolbar-btn ${showAi ? 'active' : ''}`} title="AI (Ctrl+J)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z" />
-            </svg>
-          </button>
-
-          {/* Desktop-only buttons */}
-          {!isCanvas && (
-            <button onClick={() => setFocusMode(true)} className="toolbar-btn hidden sm:flex" title="Focus (Ctrl+Shift+F)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-              </svg>
-            </button>
-          )}
-
-          <button onClick={handleCopyContent} className="toolbar-btn hidden sm:flex" title="Copy">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          </button>
-
-          <button onClick={handleDownload} className="toolbar-btn hidden sm:flex" title="Download">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
             </svg>
           </button>
 
@@ -371,16 +350,39 @@ export default function Editor({
             isCanvas={isCanvas}
           />
 
-          <button onClick={onEmail} className="toolbar-btn hidden sm:flex" title="Email">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>
-          </button>
+          {/* Desktop-only actions — hidden on mobile */}
+          <div className="hidden sm:flex items-center gap-0.5">
+            {!isCanvas && (
+              <button onClick={() => setFocusMode(true)} className="toolbar-btn" title="Focus (Ctrl+Shift+F)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                </svg>
+              </button>
+            )}
 
-          <div className="hidden sm:flex items-center gap-1.5 ml-1 pl-1 border-l border-[var(--border-subtle)]">
-            <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">{wordCount}w</span>
-            <span className="text-[10px] text-[var(--text-tertiary)]">{readingTime}</span>
+            <button onClick={handleCopyContent} className="toolbar-btn" title="Copy">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+            </button>
+
+            <button onClick={handleDownload} className="toolbar-btn" title="Download">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </button>
+
+            <button onClick={onEmail} className="toolbar-btn" title="Email">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+            </button>
+
+            <div className="flex items-center gap-1.5 ml-1 pl-1 border-l border-[var(--border-subtle)]">
+              <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">{wordCount}w</span>
+              <span className="text-[10px] text-[var(--text-tertiary)]">{readingTime}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -404,12 +406,12 @@ export default function Editor({
         )}
       </div>
 
-      {/* Mobile bottom bar — just word count, no Write/Read toggle */}
-      <div className="flex sm:hidden items-center justify-end gap-2 px-5 py-2 border-t border-[var(--border-subtle)]">
+      {/* Mobile bottom bar */}
+      <div className="flex sm:hidden items-center justify-end gap-3 px-6 py-2.5 border-t border-[var(--border-subtle)]">
         {saved && note.content && (
-          <span className="text-[10px] text-[var(--text-tertiary)] animate-fade-in">saved</span>
+          <span className="text-[11px] text-[var(--text-tertiary)] animate-fade-in">saved</span>
         )}
-        <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">{wordCount}w</span>
+        <span className="text-[11px] text-[var(--text-tertiary)] tabular-nums">{wordCount}w</span>
       </div>
 
       {/* AI Panel */}
