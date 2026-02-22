@@ -87,8 +87,8 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: noteContent,
-          selection,
+          content: noteContent || "",
+          selection: selection || "",
           prompt: prompt.trim(),
           model: selectedModel,
         }),
@@ -96,12 +96,12 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+        const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         throw new Error(data.error || `Error ${res.status}`);
       }
 
       const reader = res.body?.getReader();
-      if (!reader) throw new Error("No stream");
+      if (!reader) throw new Error("No stream available");
 
       const decoder = new TextDecoder();
       let text = "";
@@ -112,6 +112,8 @@ export default function AiPanel({ open, onClose, noteContent, selection, onInser
         text += decoder.decode(value, { stream: true });
         setResponse(text);
       }
+
+      if (!text.trim()) setError("No response received. Check AI configuration.");
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Something went wrong");

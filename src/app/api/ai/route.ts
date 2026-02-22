@@ -28,6 +28,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const key = process.env.AI_GATEWAY_KEY || process.env.AiGatewaykey;
+    if (!key) {
+      return Response.json({ error: "AI Gateway key not configured" }, { status: 500 });
+    }
+
     const { content, selection, prompt, model } = await req.json();
 
     if (!prompt) {
@@ -38,9 +43,9 @@ export async function POST(req: Request) {
 
     const context = selection
       ? `The user's note:\n${content}\n\nSelected text:\n${selection}`
-      : `The user's note:\n${content}`;
+      : content ? `The user's note:\n${content}` : "";
 
-    const fullPrompt = `${context}\n\nUser request: ${prompt}`;
+    const fullPrompt = context ? `${context}\n\nUser request: ${prompt}` : prompt;
 
     const result = streamText({
       model: gateway(modelId),
@@ -50,6 +55,7 @@ export async function POST(req: Request) {
 
     return result.toTextStreamResponse();
   } catch (error: unknown) {
+    console.error("AI API error:", error);
     const message = error instanceof Error ? error.message : "AI service unavailable";
     return Response.json({ error: message }, { status: 500 });
   }

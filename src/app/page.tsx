@@ -117,8 +117,9 @@ export default function Home() {
 
       {/* Main */}
       <div className="flex-1 min-w-0 relative">
+        <div className="hidden md:block absolute top-2 left-2 z-10">
         <button onClick={() => setSidebarCollapsed(c => !c)}
-          className="hidden md:flex absolute top-2 left-2 z-10 toolbar-btn"
+          className="toolbar-btn"
           title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             {sidebarCollapsed
@@ -127,6 +128,7 @@ export default function Home() {
             }
           </svg>
         </button>
+        </div>
 
         {activeNote ? (
           <Editor note={activeNote} onChange={handleChange} onBack={() => setShowSidebar(true)} onColorChange={handleColorChange} onEmail={handleEmail} />
