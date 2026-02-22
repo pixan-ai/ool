@@ -258,5 +258,32 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .light .tiptap-editor code { background: var(--bg-secondary); }
 .light .tiptap-editor pre { background: var(--bg-secondary); }
 
+/* ── Floating Blocks ── */
+.floating-block {
+  position: absolute; z-index: 10; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12); transition: box-shadow 150ms, border-color 150ms;
+  user-select: none; cursor: grab;
+}
+.floating-block:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
+.floating-block.editing { cursor: default; border-color: var(--accent); box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
+.floating-block.dragging { cursor: grabbing; opacity: 0.9; box-shadow: 0 8px 32px rgba(0,0,0,0.25); z-index: 20; }
+.floating-block-handle {
+  display: flex; align-items: center; justify-content: center;
+  padding: 4px 0 2px; cursor: grab; color: var(--text-tertiary);
+}
+.floating-block-handle:active { cursor: grabbing; }
+.floating-block-textarea {
+  display: block; width: 100%; border: none; outline: none;
+  background: transparent; color: var(--text); font-family: inherit;
+  font-size: 13px; line-height: 1.6; padding: 0 10px 10px; resize: none;
+}
+.floating-block-content {
+  padding: 0 10px 10px; cursor: text; min-height: 24px;
+  color: var(--text); font-size: 13px; line-height: 1.6;
+}
+.light .floating-block { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.light .floating-block:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+
 /* ── Print ── */
-@media print { .toolbar-btn, .ai-panel, .toast { display: none !important; } }
+@media print { .toolbar-btn, .ai-panel, .toast, .floating-block { display: none !important; } }

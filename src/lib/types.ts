@@ -1,11 +1,20 @@
 export type NoteColor = 'stone' | 'green' | 'red' | 'pink' | 'grey' | 'sand' | 'sky' | 'lavender';
 export type SortMode = 'modified' | 'created' | 'alpha' | 'color';
 
+export interface FloatingBlock {
+  id: string;
+  x: number; // percentage 0-100
+  y: number; // px from top of editor area
+  content: string;
+  width: number; // px
+}
+
 export interface Note {
   id: string;
   content: string;
   color: NoteColor;
   pinned: boolean;
+  blocks: FloatingBlock[];
   createdAt: number;
   updatedAt: number;
 }

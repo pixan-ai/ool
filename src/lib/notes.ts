@@ -1,7 +1,7 @@
-import { Note, NoteColor, SortMode } from "./types";
+import { Note, NoteColor, SortMode, FloatingBlock } from "./types";
 
 const KEY = "ool-notes";
-const id = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+export const genId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 export function loadNotes(): Note[] {
   if (typeof window === "undefined") return [];
@@ -10,7 +10,8 @@ export function loadNotes(): Note[] {
     if (!raw) return [];
     return (JSON.parse(raw) as any[]).map(n => ({
       id: n.id, content: n.content || "", color: n.color || "stone",
-      pinned: n.pinned || false, createdAt: n.createdAt || Date.now(), updatedAt: n.updatedAt || Date.now(),
+      pinned: n.pinned || false, blocks: Array.isArray(n.blocks) ? n.blocks : [],
+      createdAt: n.createdAt || Date.now(), updatedAt: n.updatedAt || Date.now(),
     }));
   } catch { return []; }
 }
@@ -18,12 +19,12 @@ export function loadNotes(): Note[] {
 function save(notes: Note[]) { localStorage.setItem(KEY, JSON.stringify(notes)); }
 
 export function createNote(color: NoteColor = "stone"): Note {
-  const note: Note = { id: id(), content: "", color, pinned: false, createdAt: Date.now(), updatedAt: Date.now() };
+  const note: Note = { id: genId(), content: "", color, pinned: false, blocks: [], createdAt: Date.now(), updatedAt: Date.now() };
   save([note, ...loadNotes()]);
   return note;
 }
 
-export function updateNote(noteId: string, patch: Partial<Pick<Note, "content" | "color" | "pinned">>): Note | null {
+export function updateNote(noteId: string, patch: Partial<Pick<Note, "content" | "color" | "pinned" | "blocks">>): Note | null {
   const notes = loadNotes();
   const i = notes.findIndex(n => n.id === noteId);
   if (i === -1) return null;
@@ -37,7 +38,7 @@ export function deleteNote(noteId: string) {
 }
 
 export function importNote(content: string, color: NoteColor = "stone"): Note {
-  const note: Note = { id: id(), content, color, pinned: false, createdAt: Date.now(), updatedAt: Date.now() };
+  const note: Note = { id: genId(), content, color, pinned: false, blocks: [], createdAt: Date.now(), updatedAt: Date.now() };
   save([note, ...loadNotes()]);
   return note;
 }

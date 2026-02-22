@@ -95,6 +95,12 @@ export default function Home() {
     window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
   }, [activeNote]);
 
+  const handleBlocksChange = useCallback((blocks: import("@/lib/types").FloatingBlock[]) => {
+    if (!activeId) return;
+    updateNote(activeId, { blocks });
+    setNotes(prev => prev.map(n => n.id === activeId ? { ...n, blocks } : n));
+  }, [activeId]);
+
   if (!mounted) return <div className="fixed inset-0 bg-[var(--bg)]" />;
 
   return (
@@ -131,7 +137,7 @@ export default function Home() {
         </div>
 
         {activeNote ? (
-          <Editor note={activeNote} onChange={handleChange} onBack={() => setShowSidebar(true)} onColorChange={handleColorChange} onEmail={handleEmail} />
+          <Editor note={activeNote} onChange={handleChange} onBlocksChange={handleBlocksChange} onBack={() => setShowSidebar(true)} onColorChange={handleColorChange} onEmail={handleEmail} />
         ) : (
           <div className="h-full flex flex-col items-center justify-center px-10 animate-fade-in">
             <div className="enso mx-auto mb-6" style={{ width: 56, height: 56, borderWidth: 2, opacity: 0.2 }} />

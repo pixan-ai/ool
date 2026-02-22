@@ -1,20 +1,22 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Note, NoteColor, NOTE_COLORS } from "@/lib/types";
-import { getWordCount, getReadingTime, getHeadings, getTitle } from "@/lib/notes";
+import { Note, NoteColor, NOTE_COLORS, FloatingBlock } from "@/lib/types";
+import { getWordCount, getReadingTime, getHeadings, getTitle, genId } from "@/lib/notes";
 import TiptapEditor, { getTiptapInsert } from "./TiptapEditor";
 import AiPanel from "./AiPanel";
+import FloatingBlocks, { createBlock } from "./FloatingBlocks";
 
 interface Props {
   note: Note;
   onChange: (content: string) => void;
+  onBlocksChange: (blocks: FloatingBlock[]) => void;
   onBack: () => void;
   onColorChange: (color: NoteColor) => void;
   onEmail: () => void;
 }
 
-export default function Editor({ note, onChange, onBack, onColorChange, onEmail }: Props) {
+export default function Editor({ note, onChange, onBlocksChange, onBack, onColorChange, onEmail }: Props) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showToc, setShowToc] = useState(false);
   const [showAi, setShowAi] = useState(false);
@@ -25,6 +27,7 @@ export default function Editor({ note, onChange, onBack, onColorChange, onEmail 
   const colorRef = useRef<HTMLDivElement>(null);
   const tocRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Auto-save indicator
@@ -143,6 +146,12 @@ export default function Editor({ note, onChange, onBack, onColorChange, onEmail 
             </svg>
           </button>
 
+          <button onClick={() => onBlocksChange(createBlock(canvasRef, note.blocks))} className="toolbar-btn" title="Add text block">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+          </button>
+
           {/* Mobile overflow */}
           <div ref={moreRef} className="sm:hidden relative">
             <button onClick={() => setShowMore(o => !o)} className="toolbar-btn">
@@ -184,11 +193,27 @@ export default function Editor({ note, onChange, onBack, onColorChange, onEmail 
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto" style={{ background: noteColor.bg }}>
-        <div className="tiptap-wrapper px-5 py-5 sm:px-8 md:px-14 lg:px-20 md:py-10">
+      {/* Content - hybrid canvas */}
+      <div ref={canvasRef} className="flex-1 overflow-y-auto relative" style={{ background: noteColor.bg }}
+        onDoubleClick={(e) => {
+          // Only create block if double-clicking on the canvas bg, not on editor or existing block
+          const t = e.target as HTMLElement;
+          if (t.closest(".tiptap") || t.closest(".floating-block")) return;
+          const rect = canvasRef.current!.getBoundingClientRect();
+          const x = ((e.clientX - rect.left) / canvasRef.current!.scrollWidth) * 100;
+          const y = e.clientY - rect.top + canvasRef.current!.scrollTop;
+          onBlocksChange([...note.blocks, { id: genId(), x: Math.max(2, Math.min(70, x)), y: Math.max(0, y), content: "", width: 240 }]);
+        }}
+      >
+        <div className="tiptap-wrapper px-5 py-5 sm:px-8 md:px-14 lg:px-20 md:py-10" style={{ minHeight: note.blocks.length > 0 ? "150vh" : undefined }}>
           <TiptapEditor content={note.content} onChange={onChange} onSelectionChange={setSelection} placeholder="Start writing..." autoFocus />
         </div>
+        <FloatingBlocks blocks={note.blocks} onChange={onBlocksChange} containerRef={canvasRef} />
+        {note.blocks.length > 0 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-[var(--text-tertiary)] opacity-50 pointer-events-none">
+            double-click to add · drag to move
+          </div>
+        )}
       </div>
 
       {/* Mobile bottom */}
