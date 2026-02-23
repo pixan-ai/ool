@@ -1,80 +1,91 @@
-import { Note } from "./types";
+import { Note, NoteColor, SortMode, FloatingBlock } from "./types";
 
-const STORAGE_KEY = "ool-notes";
-
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
+const KEY = "ool-notes";
+export const genId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 export function loadNotes(): Note[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return [];
+    return (JSON.parse(raw) as any[]).map(n => ({
+      id: n.id, content: n.content || "", color: n.color || "stone",
+      pinned: n.pinned || false, blocks: Array.isArray(n.blocks) ? n.blocks : [],
+      createdAt: n.createdAt || Date.now(), updatedAt: n.updatedAt || Date.now(),
+    }));
+  } catch { return []; }
 }
 
-function saveNotes(notes: Note[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-}
+function save(notes: Note[]) { localStorage.setItem(KEY, JSON.stringify(notes)); }
 
-export function createNote(): Note {
-  const notes = loadNotes();
-  const note: Note = {
-    id: generateId(),
-    content: "",
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-  notes.unshift(note);
-  saveNotes(notes);
+export function createNote(color: NoteColor = "stone"): Note {
+  const note: Note = { id: genId(), content: "", color, pinned: false, blocks: [], createdAt: Date.now(), updatedAt: Date.now() };
+  save([note, ...loadNotes()]);
   return note;
 }
 
-export function updateNote(id: string, content: string): Note | null {
+export function updateNote(noteId: string, patch: Partial<Pick<Note, "content" | "color" | "pinned" | "blocks">>): Note | null {
   const notes = loadNotes();
-  const index = notes.findIndex((n) => n.id === id);
-  if (index === -1) return null;
-  notes[index].content = content;
-  notes[index].updatedAt = Date.now();
-  saveNotes(notes);
-  return notes[index];
+  const i = notes.findIndex(n => n.id === noteId);
+  if (i === -1) return null;
+  notes[i] = { ...notes[i], ...patch, updatedAt: Date.now() };
+  save(notes);
+  return notes[i];
 }
 
-export function deleteNote(id: string): void {
-  const notes = loadNotes();
-  saveNotes(notes.filter((n) => n.id !== id));
+export function deleteNote(noteId: string) {
+  save(loadNotes().filter(n => n.id !== noteId));
+}
+
+export function importNote(content: string, color: NoteColor = "stone"): Note {
+  const note: Note = { id: genId(), content, color, pinned: false, blocks: [], createdAt: Date.now(), updatedAt: Date.now() };
+  save([note, ...loadNotes()]);
+  return note;
 }
 
 export function getTitle(note: Note): string {
-  const firstLine = note.content.split("\n")[0]?.trim();
-  if (!firstLine) return "Untitled";
-  // Strip markdown heading markers
-  return firstLine.replace(/^#+\s*/, "") || "Untitled";
+  const line = note.content.split("\n").find(l => l.trim());
+  if (!line) return "Untitled";
+  return line.replace(/^#+\s*/, "").replace(/\*\*/g, "").replace(/[*_~`]/g, "").trim().slice(0, 60) || "Untitled";
 }
 
 export function getPreview(note: Note): string {
-  const lines = note.content.split("\n").filter((l) => l.trim());
-  const second = lines[1]?.trim() || "";
-  // Strip markdown formatting for preview
-  return second.replace(/[#*_~`>\-[\]()]/g, "").trim() || "No content";
+  const lines = note.content.split("\n").filter(l => l.trim());
+  return (lines[1] || lines[0] || "").replace(/[#*_~`>\-[\]()]/g, "").trim().slice(0, 100);
 }
 
-export function formatDate(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
+export function formatDate(ts: number): string {
+  const d = new Date(ts), now = new Date(), diff = now.getTime() - d.getTime();
+  if (diff < 60000) return "just now";
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) });
+}
 
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-  return new Date(timestamp).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+export const getWordCount = (s: string) => s.trim() ? s.trim().split(/\s+/).length : 0;
+export const getReadingTime = (w: number) => w < 200 ? "<1 min" : `${Math.ceil(w / 200)} min`;
+
+export function getHeadings(content: string) {
+  return content.split("\n").map((l, i) => {
+    const m = l.match(/^(#{1,4})\s+(.+)/);
+    return m ? { level: m[1].length, text: m[2].trim(), line: i } : null;
+  }).filter(Boolean) as { level: number; text: string; line: number }[];
+}
+
+export function searchNotes(notes: Note[], q: string): Note[] {
+  const lower = q.toLowerCase();
+  return notes.filter(n => n.content.toLowerCase().includes(lower));
+}
+
+export function sortNotes(notes: Note[], mode: SortMode): Note[] {
+  const pinned = notes.filter(n => n.pinned), unpinned = notes.filter(n => !n.pinned);
+  const colorOrder = ["stone", "green", "red", "pink", "grey", "sand", "sky", "lavender"];
+  const sorters: Record<SortMode, (a: Note, b: Note) => number> = {
+    modified: (a, b) => b.updatedAt - a.updatedAt,
+    created: (a, b) => b.createdAt - a.createdAt,
+    alpha: (a, b) => getTitle(a).localeCompare(getTitle(b)),
+    color: (a, b) => colorOrder.indexOf(a.color) - colorOrder.indexOf(b.color),
+  };
+  return [...pinned.sort(sorters[mode]), ...unpinned.sort(sorters[mode])];
 }
