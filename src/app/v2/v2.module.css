@@ -23,6 +23,7 @@
   overflow: hidden;
   display: flex;
   transition: background 200ms ease, color 200ms ease;
+  position: relative;
 }
 
 .root[data-dark] {
@@ -36,6 +37,21 @@
   --accent-hover: #6b93ff;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Overlay backdrop — visible on mobile when sidebar is open */
+.backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 10;
+  animation: fadeIn 160ms ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* Empty state when no note is selected */
@@ -77,6 +93,13 @@
   font-size: 12px;
   font-family: var(--font-mono), monospace;
   box-shadow: 0 1px 0 var(--border);
+}
+
+/* ─── Mobile layout (< 640px) ─── */
+@media (max-width: 639px) {
+  .backdrop {
+    display: block;
+  }
 }
 
 /* Reduced motion */

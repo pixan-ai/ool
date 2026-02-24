@@ -3,7 +3,12 @@
 import { useCallback, useRef } from "react";
 import type { Note, NoteColor, SaveStatus } from "../lib/types";
 import { NOTE_COLORS, COLOR_VALUES } from "../lib/types";
-import { findFreePosition, snapToGrid, BLOCK_DEFAULT_W, BLOCK_DEFAULT_H } from "../lib/grid";
+import {
+  findFreePosition,
+  snapToGrid,
+  BLOCK_DEFAULT_W,
+  BLOCK_DEFAULT_H,
+} from "../lib/grid";
 import { wordCount } from "../lib/storage";
 import Block from "./Block";
 import css from "./Canvas.module.css";
@@ -12,6 +17,7 @@ interface CanvasProps {
   note: Note;
   saveStatus: SaveStatus;
   isDark: boolean;
+  onMenuOpen: () => void;
   onUpdateTitle: (title: string) => void;
   onUpdateContent: (content: string) => void;
   onUpdateColor: (color: NoteColor) => void;
@@ -25,6 +31,7 @@ export default function Canvas({
   note,
   saveStatus,
   isDark,
+  onMenuOpen,
   onUpdateTitle,
   onUpdateContent,
   onUpdateColor,
@@ -42,9 +49,13 @@ export default function Canvas({
 
   const handleCanvasDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      // Only trigger on the canvas background, not on blocks or inputs
+      // Only trigger on the background, not on child elements
       const target = e.target as HTMLElement;
-      if (target !== e.currentTarget && !target.classList.contains(css.canvasInner)) return;
+      if (
+        target !== e.currentTarget &&
+        !target.classList.contains(css.canvasInner)
+      )
+        return;
 
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -70,14 +81,34 @@ export default function Canvas({
 
   return (
     <div className={css.wrapper}>
-      {/* Toolbar */}
+      {/* Mobile-only top bar with hamburger + note title */}
+      <div className={css.mobileBar}>
+        <button
+          className={css.menuBtn}
+          onClick={onMenuOpen}
+          aria-label="Open notes list"
+        >
+          <span className={css.menuBar} />
+          <span className={css.menuBar} />
+          <span className={css.menuBar} />
+        </button>
+        <span className={css.mobileTitleLabel}>
+          {note.title || "Untitled"}
+        </span>
+      </div>
+
+      {/* Toolbar — horizontally scrollable on small screens */}
       <div className={css.toolbar}>
         {NOTE_COLORS.map((c) => {
-          const val = isDark ? COLOR_VALUES[c].dark : COLOR_VALUES[c].light;
+          const val = isDark
+            ? COLOR_VALUES[c].dark
+            : COLOR_VALUES[c].light;
           return (
             <button
               key={c}
-              className={`${css.colorSwatch} ${note.color === c ? css.colorSwatchActive : ""}`}
+              className={`${css.colorSwatch} ${
+                note.color === c ? css.colorSwatchActive : ""
+              }`}
               style={{ background: val }}
               onClick={() => onUpdateColor(c)}
               title={c}
@@ -93,7 +124,9 @@ export default function Canvas({
         </button>
 
         <div className={css.toolbarRight}>
-          <div className={`${css.saveDot} ${isSaving ? css.saveDotSaving : ""}`} />
+          <div
+            className={`${css.saveDot} ${isSaving ? css.saveDotSaving : ""}`}
+          />
           <button className={css.deleteBtn} onClick={handleDelete}>
             Delete
           </button>
@@ -136,9 +169,15 @@ export default function Canvas({
 
       {/* Status bar */}
       <div className={css.statusBar}>
-        <div className={`${css.statusDot} ${isSaving ? css.statusDotSaving : ""}`} />
-        <span>{words} word{words !== 1 ? "s" : ""}</span>
-        <span>{note.blocks.length} block{note.blocks.length !== 1 ? "s" : ""}</span>
+        <div
+          className={`${css.statusDot} ${isSaving ? css.statusDotSaving : ""}`}
+        />
+        <span>
+          {words} word{words !== 1 ? "s" : ""}
+        </span>
+        <span>
+          {note.blocks.length} block{note.blocks.length !== 1 ? "s" : ""}
+        </span>
       </div>
     </div>
   );

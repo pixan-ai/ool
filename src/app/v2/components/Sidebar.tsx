@@ -10,8 +10,10 @@ interface SidebarProps {
   notes: Note[];
   activeId: string | null;
   theme: Theme;
+  isOpen: boolean;
   onSelect: (id: string) => void;
   onCreate: () => void;
+  onClose: () => void;
   onToggleTheme: () => void;
   searchRef: React.RefObject<HTMLInputElement | null>;
 }
@@ -20,8 +22,10 @@ export default function Sidebar({
   notes,
   activeId,
   theme,
+  isOpen,
   onSelect,
   onCreate,
+  onClose,
   onToggleTheme,
   searchRef,
 }: SidebarProps) {
@@ -37,7 +41,6 @@ export default function Sidebar({
     }, 200);
   }, []);
 
-  // Cleanup debounce on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -54,16 +57,39 @@ export default function Sidebar({
 
   const isDark = theme === "dark";
 
+  const handleSelect = useCallback(
+    (id: string) => {
+      onSelect(id);
+      onClose(); // close sidebar on mobile after selecting a note
+    },
+    [onSelect, onClose]
+  );
+
   return (
-    <aside className={css.sidebar}>
+    <aside
+      className={`${css.sidebar} ${isOpen ? css.sidebarOpen : ""}`}
+    >
       <div className={css.header}>
         <div className={css.logo}>
           <span className={css.logoDot} />
           noter.sh
         </div>
-        <button className={css.newBtn} onClick={onCreate} title="New note (N)">
-          +
-        </button>
+        <div className={css.headerRight}>
+          <button
+            className={css.newBtn}
+            onClick={onCreate}
+            title="New note (N)"
+          >
+            +
+          </button>
+          <button
+            className={css.closeBtn}
+            onClick={onClose}
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <div className={css.search}>
@@ -88,7 +114,7 @@ export default function Sidebar({
             <div
               key={note.id}
               className={isActive ? css.noteItemActive : css.noteItem}
-              onClick={() => onSelect(note.id)}
+              onClick={() => handleSelect(note.id)}
             >
               <span
                 className={css.colorDot}
@@ -108,13 +134,15 @@ export default function Sidebar({
       </div>
 
       <div className={css.footer}>
-        <span>{notes.length} note{notes.length !== 1 ? "s" : ""}</span>
+        <span>
+          {notes.length} note{notes.length !== 1 ? "s" : ""}
+        </span>
         <button
           className={css.themeBtn}
           onClick={onToggleTheme}
           title={isDark ? "Switch to light mode" : "Switch to dark mode"}
         >
-          {isDark ? "\u2600\uFE0F" : "\uD83C\uDF19"}
+          {isDark ? "☀️" : "🌙"}
         </button>
       </div>
     </aside>

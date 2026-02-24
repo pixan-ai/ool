@@ -20,6 +20,7 @@ export default function V2Page() {
   const [theme, setTheme] = useState<Theme>("light");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [mounted, setMounted] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -31,6 +32,15 @@ export default function V2Page() {
     if (stored.length > 0) setActiveId(stored[0].id);
     setTheme(loadTheme());
     setMounted(true);
+  }, []);
+
+  // On desktop, sidebar is always visible — reset open state on resize
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth >= 640) setSidebarOpen(false);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Sorted notes (most recently updated first)
@@ -45,7 +55,6 @@ export default function V2Page() {
     saveTimerRef.current = setTimeout(() => {
       saveNotes(updated);
       setSaveStatus("saved");
-      // Reset back to idle after brief flash
       setTimeout(() => setSaveStatus("idle"), 600);
     }, 500);
   }, []);
@@ -57,6 +66,7 @@ export default function V2Page() {
     const updated = [note, ...notes];
     persistNotes(updated);
     setActiveId(note.id);
+    setSidebarOpen(false); // close sidebar on mobile after creating
   }, [notes, persistNotes]);
 
   const handleSelect = useCallback((id: string) => {
@@ -70,7 +80,7 @@ export default function V2Page() {
     setActiveId(updated.length > 0 ? updated[0].id : null);
   }, [activeId, notes, persistNotes]);
 
-  // Generic note updater to reduce repetition
+  // Generic note updater — avoids repetition across handlers
   const updateActiveNote = useCallback(
     (updater: (note: Note) => Partial<Note>) => {
       if (!activeId) return;
@@ -160,6 +170,7 @@ export default function V2Page() {
 
       if (e.key === "Escape") {
         (document.activeElement as HTMLElement)?.blur();
+        setSidebarOpen(false);
         return;
       }
 
@@ -173,7 +184,9 @@ export default function V2Page() {
 
       if (e.key === "/") {
         e.preventDefault();
-        searchRef.current?.focus();
+        setSidebarOpen(true);
+        // Wait for sidebar to render before focusing
+        setTimeout(() => searchRef.current?.focus(), 50);
       }
     }
 
@@ -181,7 +194,6 @@ export default function V2Page() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleCreate]);
 
-  // Avoid hydration mismatch — render nothing until mounted
   if (!mounted) {
     return (
       <div className={css.root} suppressHydrationWarning>
@@ -190,18 +202,31 @@ export default function V2Page() {
     );
   }
 
+  const isDark = theme === "dark";
+
   return (
     <div
       className={css.root}
-      data-dark={theme === "dark" ? "" : undefined}
+      data-dark={isDark ? "" : undefined}
       suppressHydrationWarning
     >
+      {/* Mobile backdrop — tap to close sidebar */}
+      {sidebarOpen && (
+        <div
+          className={css.backdrop}
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <Sidebar
         notes={sortedNotes}
         activeId={activeId}
         theme={theme}
+        isOpen={sidebarOpen}
         onSelect={handleSelect}
         onCreate={handleCreate}
+        onClose={() => setSidebarOpen(false)}
         onToggleTheme={handleToggleTheme}
         searchRef={searchRef}
       />
@@ -210,7 +235,8 @@ export default function V2Page() {
         <Canvas
           note={activeNote}
           saveStatus={saveStatus}
-          isDark={theme === "dark"}
+          isDark={isDark}
+          onMenuOpen={() => setSidebarOpen(true)}
           onUpdateTitle={handleUpdateTitle}
           onUpdateContent={handleUpdateContent}
           onUpdateColor={handleUpdateColor}
