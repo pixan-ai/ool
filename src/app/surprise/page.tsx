@@ -259,6 +259,7 @@ export default function OraclePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
   const [searchOn, setSearchOn] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   isLoadingRef.current = isLoading;
 
@@ -279,6 +280,7 @@ export default function OraclePage() {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
+        setIsPlaying(false);
       }
       const res = await fetch("/api/surprise/voice", {
         method: "POST",
@@ -290,10 +292,11 @@ export default function OraclePage() {
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audioRef.current = audio;
-      audio.onended = () => URL.revokeObjectURL(url);
+      audio.onended = () => { URL.revokeObjectURL(url); setIsPlaying(false); };
+      setIsPlaying(true);
       await audio.play();
     } catch {
-      // Voice is optional
+      setIsPlaying(false);
     }
   }, []);
 
@@ -646,6 +649,28 @@ export default function OraclePage() {
                 >
                   🎙 Voice
                 </button>
+                {isPlaying && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current = null;
+                        setIsPlaying(false);
+                      }
+                    }}
+                    title="Stop audio"
+                    style={{
+                      background: "rgba(239,68,68,0.2)",
+                      border: "1px solid rgba(239,68,68,0.5)",
+                      borderRadius: 8, padding: "5px 11px", cursor: "pointer",
+                      color: "#fca5a5", fontSize: 11.5,
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}
+                  >
+                    ⏹ Stop
+                  </button>
+                )}
                 <button
                   type="button"
                   className="o-tog"
