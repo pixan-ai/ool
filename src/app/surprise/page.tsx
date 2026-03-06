@@ -321,11 +321,17 @@ export default function OraclePage() {
           }),
         });
 
-        if (!res.ok || !res.body) {
-          setMessages((prev) => [
-            ...prev.slice(0, -1),
-            { role: "assistant", content: "Error: could not reach ORACLE." },
-          ]);
+        if (!res.ok) {
+          let errText = "Error: could not reach ORACLE.";
+          try {
+            const j = await res.json();
+            errText = "Server error: " + (j.error || res.status);
+          } catch { /* ignore */ }
+          setMessages((prev) => [...prev.slice(0, -1), { role: "assistant", content: errText }]);
+          return;
+        }
+        if (!res.body) {
+          setMessages((prev) => [...prev.slice(0, -1), { role: "assistant", content: "No response body." }]);
           return;
         }
 
