@@ -16,55 +16,31 @@ Begin responses with insight. End with clarity.`;
 
 export async function POST(req: Request) {
   const key = process.env.AI_GATEWAY_KEY || process.env.AiGatewaykey;
+
+  // Debug: log env var status (masked)
+  console.log('[oracle/chat] key present:', !!key, key ? `(${key.slice(0,4)}...)` : 'MISSING');
+
   if (!key) {
-    return Response.json({ error: 'Oracle not configured' }, { status: 500 });
+    console.error('[oracle/chat] No AI_GATEWAY_KEY or AiGatewaykey env var found');
+    return Response.json({ error: 'Oracle not configured: missing AI_GATEWAY_KEY' }, { status: 500 });
   }
 
   try {
-    const { messages, searchContext, useSearch, query } = await req.json();
-
-    // If search is requested and we have a query, fetch Brave results
-    let context = searchContext || '';
-    if (!context && useSearch && query) {
-      try {
-        const searchRes = await fetch(
-          `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&search_lang=en`,
-          {
-            headers: {
-              Accept: 'application/json',
-              'Accept-Encoding': 'gzip',
-              'X-Subscription-Token': process.env.BRAVE_API_KEY || process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_KEY || '',
-            },
-          }
-        );
-        if (searchRes.ok) {
-          const data = await searchRes.json();
-          const results = (data.web?.results || []).slice(0, 5);
-          context = results.map((r: { title: string; url: string; description?: string }) =>
-            `[${r.title}](${r.url}): ${r.description || ''}`
-          ).join('\n');
-        }
-      } catch {
-        // Search is optional
-      }
-    }
+    const { messages, query } = await req.json();
 
     const gateway = createGateway({ apiKey: key });
 
-    let system = SYSTEM;
-    if (context) {
-      system += `\n\nReal-time web intelligence:\n${context}`;
-    }
-
     const result = streamText({
       model: gateway('anthropic/claude-sonnet-4-5'),
-      system,
+      system: SYSTEM,
       messages,
     });
 
     return result.toTextStreamResponse();
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Oracle offline';
-    return Response.json({ error: msg }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[oracle/chat] Error:', msg);
+    // Return plain text error so the stream reader can display it
+    return new Response(`ERROR: ${msg}`, { status: 200 });
   }
 }
