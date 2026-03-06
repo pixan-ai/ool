@@ -17,7 +17,6 @@ Begin responses with insight. End with clarity.`;
 export async function POST(req: Request) {
   const key = process.env.AI_GATEWAY_KEY || process.env.AiGatewaykey;
 
-  // Debug: log env var status (masked)
   console.log('[oracle/chat] key present:', !!key, key ? `(${key.slice(0,4)}...)` : 'MISSING');
 
   if (!key) {
@@ -26,12 +25,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { messages, query } = await req.json();
+    const { messages } = await req.json();
 
     const gateway = createGateway({ apiKey: key });
 
     const result = streamText({
-      model: gateway('anthropic/claude-sonnet-4-5'),
+      model: gateway('anthropic/claude-sonnet-4-6'),
       system: SYSTEM,
       messages,
     });
@@ -40,7 +39,6 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[oracle/chat] Error:', msg);
-    // Return plain text error so the stream reader can display it
     return new Response(`ERROR: ${msg}`, { status: 200 });
   }
 }
