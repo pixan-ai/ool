@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 // Adam voice - powerful, clear, authoritative
-const VOICE_ID = 'pNInz6obpgDQGcFmaJgB';
+const VOICE_ID = 'F3ex3YYNcqE13sRyHMRP';
 
 export async function POST(req: Request) {
   try {
