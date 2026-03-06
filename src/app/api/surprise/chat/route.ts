@@ -21,19 +21,43 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { messages, searchContext } = await req.json();
+    const { messages, searchContext, useSearch, query } = await req.json();
+
+    // If search is requested and we have a query, fetch Brave results
+    let context = searchContext || '';
+    if (!context && useSearch && query) {
+      try {
+        const searchRes = await fetch(
+          `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&search_lang=en`,
+          {
+            headers: {
+              Accept: 'application/json',
+              'Accept-Encoding': 'gzip',
+              'X-Subscription-Token': process.env.BRAVE_API_KEY || process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_KEY || '',
+            },
+          }
+        );
+        if (searchRes.ok) {
+          const data = await searchRes.json();
+          const results = (data.web?.results || []).slice(0, 5);
+          context = results.map((r: { title: string; url: string; description?: string }) =>
+            `[${r.title}](${r.url}): ${r.description || ''}`
+          ).join('\n');
+        }
+      } catch {
+        // Search is optional
+      }
+    }
+
     const gateway = createGateway({ apiKey: key });
 
     let system = SYSTEM;
-    if (searchContext) {
-      system += `
-
-Real-time web intelligence (search results):
-${searchContext}`;
+    if (context) {
+      system += `\n\nReal-time web intelligence:\n${context}`;
     }
 
     const result = streamText({
-      model: gateway('anthropic/claude-sonnet-4-6'),
+      model: gateway('anthropic/claude-sonnet-4-5'),
       system,
       messages,
     });
