@@ -317,6 +317,7 @@ export default function OraclePage() {
           body: JSON.stringify({
             messages: nextMessages,
             useSearch: searchOnRef.current,
+            query: userText,
           }),
         });
 
