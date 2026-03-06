@@ -15,13 +15,13 @@ Your traits:
 Begin responses with insight. End with clarity.`;
 
 export async function POST(req: Request) {
-  const key = process.env.AI_GATEWAY_KEY || process.env.AiGatewaykey;
-
-  console.log('[oracle/chat] key present:', !!key, key ? `(${key.slice(0,4)}...)` : 'MISSING');
+  const key =
+    process.env.VERCEL_AI_GATEWAY_TOKEN ||
+    process.env.AI_GATEWAY_KEY ||
+    process.env.AiGatewaykey;
 
   if (!key) {
-    console.error('[oracle/chat] No AI_GATEWAY_KEY or AiGatewaykey env var found');
-    return Response.json({ error: 'Oracle not configured: missing AI_GATEWAY_KEY' }, { status: 500 });
+    return Response.json({ error: 'Oracle not configured: missing VERCEL_AI_GATEWAY_TOKEN' }, { status: 500 });
   }
 
   try {
