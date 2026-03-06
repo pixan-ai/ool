@@ -1,671 +1,693 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useCallback, useState } from "react";
-import { useChat } from "ai/react";
+import { useEffect, useRef, useState, useCallback } from 'react';
 
-// ─── WebGL Shaders ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// WEBGL SHADERS — Aurora / Cosmic Nebula
+// ─────────────────────────────────────────────
 
 const VERT = `
 attribute vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
 `;
 
-// Domain-warped fBm — creates organic nebula / aurora patterns (Inigo Quilez technique)
 const FRAG = `
 precision highp float;
-uniform float u_time;
+uniform float u_t;
 uniform vec2 u_res;
 uniform float u_intensity;
 
-vec2 hash2(vec2 p) {
-  p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
-  return -1.0 + 2.0 * fract(sin(p) * 43758.5453);
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-float gnoise(vec2 p) {
-  vec2 i = floor(p), f = fract(p);
-  vec2 u = f * f * (3.0 - 2.0 * f);
+float noise(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
   return mix(
-    mix(dot(hash2(i), f), dot(hash2(i + vec2(1,0)), f - vec2(1,0)), u.x),
-    mix(dot(hash2(i+vec2(0,1)), f-vec2(0,1)), dot(hash2(i+vec2(1,1)), f-vec2(1,1)), u.x),
-    u.y
+    mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+    mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+    f.y
   );
 }
 
 float fbm(vec2 p) {
-  float v = 0.0, a = 0.5;
-  for (int i = 0; i < 5; i++) { v += a * gnoise(p); p *= 2.1; a *= 0.5; }
+  float v = 0.0; float a = 0.5;
+  mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
+  for (int i = 0; i < 5; i++) { v += a * noise(p); p = m * p + vec2(100.0); a *= 0.5; }
   return v;
 }
 
 void main() {
   vec2 uv = gl_FragCoord.xy / u_res;
-  float t = u_time * (0.07 + u_intensity * 0.05);
+  float t = u_t * (0.1 + u_intensity * 0.04);
 
-  // Two-layer domain warp
-  vec2 q = vec2(fbm(uv * 2.0 + t * 0.6), fbm(uv * 2.0 + vec2(5.2, 1.3) + t * 0.45));
-  vec2 r = vec2(
-    fbm(uv * 2.5 + 2.2 * q + vec2(1.7, 9.2) + t * 0.15),
-    fbm(uv * 2.5 + 2.2 * q + vec2(8.3, 2.8) + t * 0.13)
-  );
+  float n1 = fbm(uv * 2.5 + vec2(t * 0.3, t * 0.1));
+  float n2 = fbm(uv * 2.0 + vec2(-t * 0.2, t * 0.15) + n1 * 0.6);
+  float n3 = fbm(uv * 3.5 + vec2(t * 0.1, -t * 0.2) + n2 * 0.4);
+  float n4 = fbm(uv * 1.5 + vec2(t * 0.05, t * 0.08) + n3 * 0.3);
 
-  float f = fbm(uv * 2.5 + 3.0 * r) * 0.5 + 0.5;
+  float g1 = exp(-abs(uv.y - 0.62 - n1 * 0.18) * 7.5) * (1.8 + u_intensity * 0.6);
+  float g2 = exp(-abs(uv.y - 0.38 - n2 * 0.12) * 11.0) * (1.3 + u_intensity * 0.4);
+  float g3 = exp(-abs(uv.y - 0.5 - n4 * 0.1) * 5.0) * 0.5;
 
-  // Color palette: deep void -> electric purple -> cyan -> gold
-  vec3 col = mix(
-    mix(vec3(0.02, 0.01, 0.09), vec3(0.42, 0.07, 0.78), smoothstep(0.25, 0.55, f)),
-    mix(vec3(0.02, 0.55, 0.95), vec3(0.75, 0.60, 0.05), smoothstep(0.60, 0.88, f)),
-    smoothstep(0.45, 0.75, f)
-  );
+  vec3 col = vec3(0.008, 0.002, 0.03);
 
-  float vg = 1.0 - length((uv - 0.5) * vec2(1.5, 1.1));
-  col *= clamp(vg * 0.88 + 0.08, 0.0, 1.0);
-  col = pow(max(col, vec3(0.0)), vec3(0.82));
+  col += vec3(0.45, 0.02, 1.0) * g1 * (n3 * 0.65 + 0.38);
+  col += vec3(0.0, 0.85, 1.0) * g1 * smoothstep(0.48, 0.88, n2) * 0.78;
+  col += vec3(0.28, 0.0, 0.72) * g2 * (n2 * 0.55 + 0.28);
+  col += vec3(0.0, 0.55, 0.75) * g2 * smoothstep(0.55, 0.85, n3) * 0.45;
+  col += vec3(1.0, 0.78, 0.12) * smoothstep(0.86, 1.0, n1) * g1 * (0.38 + u_intensity * 0.15);
+  col += vec3(0.18, 0.0, 0.45) * g3 * (n4 * 0.4 + 0.3);
+  col += vec3(0.1, 0.0, 0.22) * n1 * 0.55;
+  col += vec3(0.0, 0.03, 0.16) * n2 * 0.48;
+  col += vec3(0.02, 0.0, 0.08) * n4 * 0.35;
+
+  // Stars
+  vec2 sv = floor(uv * 750.0);
+  float star = pow(hash(sv + 3.71), 235.0) * 5.5;
+  float twinkle = 0.65 + 0.35 * sin(t * 3.5 + hash(sv + 1.3) * 6.2832);
+  col += vec3(0.88, 0.94, 1.0) * star * twinkle;
+
+  // Bright core stars
+  vec2 sv2 = floor(uv * 200.0);
+  float bstar = pow(hash(sv2 + 9.13), 280.0) * 3.0;
+  col += vec3(0.7, 0.85, 1.0) * bstar;
+
+  // Vignette
+  vec2 v = (uv - 0.5) * 2.0;
+  col *= pow(max(1.0 - dot(v * 0.45, v * 0.45), 0.0), 0.55) * 0.82 + 0.18;
+
+  // Tone map + gamma
+  col = col / (col + vec3(0.55));
+  col = pow(clamp(col, 0.0, 1.0), vec3(0.72));
 
   gl_FragColor = vec4(col, 1.0);
 }
 `;
 
-function initWebGL(canvas: HTMLCanvasElement, getIntensity: () => number) {
-  const gl = canvas.getContext("webgl");
-  if (!gl) return null;
+// ─────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────
 
-  const compile = (type: number, src: string) => {
-    const s = gl.createShader(type)!;
-    gl.shaderSource(s, src);
-    gl.compileShader(s);
-    return s;
-  };
-
-  const prog = gl.createProgram()!;
-  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
-  gl.linkProgram(prog);
-  gl.useProgram(prog);
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-    gl.STATIC_DRAW
-  );
-  const pos = gl.getAttribLocation(prog, "a_pos");
-  gl.enableVertexAttribArray(pos);
-  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
-
-  const uTime = gl.getUniformLocation(prog, "u_time");
-  const uRes = gl.getUniformLocation(prog, "u_res");
-  const uIntensity = gl.getUniformLocation(prog, "u_intensity");
-
-  const resize = () => {
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    gl.viewport(0, 0, canvas.width, canvas.height);
-  };
-  resize();
-  window.addEventListener("resize", resize);
-
-  let raf: number;
-  const start = performance.now();
-  const draw = (now: number) => {
-    gl.uniform1f(uTime, (now - start) * 0.001);
-    gl.uniform2f(uRes, canvas.width, canvas.height);
-    gl.uniform1f(uIntensity, getIntensity());
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    raf = requestAnimationFrame(draw);
-  };
-  raf = requestAnimationFrame(draw);
-
-  return () => {
-    cancelAnimationFrame(raf);
-    window.removeEventListener("resize", resize);
-  };
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  id: string;
 }
 
-// ─── Syntax Highlighter ───────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// SYNTAX HIGHLIGHTING
+// ─────────────────────────────────────────────
 
-function highlight(code: string): string {
-  const esc = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  let h = esc(code);
-  // Strings
+function highlightCode(code: string): string {
+  let h = code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  h = h.replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/|#[^\n]*)/g,
+    '<span class="sh-cmt">$1</span>');
+  h = h.replace(/(["'`])((?:\\.|(?!\1)[^\\])*)\1/g,
+    '<span class="sh-str">$1$2$1</span>');
+  h = h.replace(/\b(\d+\.?\d*)\b/g, '<span class="sh-num">$1</span>');
   h = h.replace(
-    /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`[^`]*`)/g,
-    '<span style="color:#c3e88d">$1</span>'
+    /\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|import|export|default|class|extends|async|await|new|this|typeof|instanceof|true|false|null|undefined|from|of|in|try|catch|finally|throw|type|interface|enum|def|print|self|pass|yield|lambda|with|as|not|and|or|is|del|fn|pub|use|mod|struct|impl|trait|mut|move)\b/g,
+    '<span class="sh-kw">$1</span>'
   );
-  // Keywords
-  h = h.replace(
-    /\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|class|extends|import|export|from|default|async|await|new|this|typeof|instanceof|interface|type|enum|void|null|undefined|true|false|try|catch|finally|throw|static|public|private|protected|readonly|in|of|yield|super|declare)\b/g,
-    '<b style="color:#c792ea;font-weight:normal">$1</b>'
-  );
-  // Numbers
-  h = h.replace(/\b(\d+\.?\d*)\b/g, '<span style="color:#f78c6c">$1</span>');
-  // Types / constructors
-  h = h.replace(/\b([A-Z][a-zA-Z0-9_]*)/g, '<span style="color:#ffcb6b">$1</span>');
-  // Function calls
-  h = h.replace(
-    /([a-zA-Z_$][\w$]*)(?=\s*\()/g,
-    '<span style="color:#82aaff">$1</span>'
-  );
-  // Comments (last — overrides above inside comments)
-  h = h.replace(
-    /(\/\/[^\n]*)/g,
-    '<em style="color:#546e7a;font-style:normal">$1</em>'
-  );
+  h = h.replace(/\b([a-zA-Z_$]\w*)\s*(?=\()/g, '<span class="sh-fn">$1</span>');
+
   return h;
 }
 
-// ─── Markdown → React renderer ────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// MARKDOWN RENDERER
+// ─────────────────────────────────────────────
 
-function renderContent(text: string) {
-  const parts: React.ReactNode[] = [];
-  const RE = /```(\w*)\n?([\s\S]*?)```/g;
-  let last = 0, key = 0;
-  let m: RegExpExecArray | null;
+function renderMarkdown(text: string): string {
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const hl = highlightCode(code.trim());
+    const langLabel = lang || 'code';
+    return `<div class="cb"><div class="cb-head"><span class="cb-lang">${langLabel}</span><button class="cb-copy" onclick="(()=>{const el=this.closest('.cb').querySelector('pre');navigator.clipboard.writeText(el.innerText);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)})()">Copy</button></div><pre class="cb-pre">${hl}</pre></div>`;
+  });
 
-  while ((m = RE.exec(text)) !== null) {
-    if (m.index > last) {
-      parts.push(
-        <span key={key++} style={{ whiteSpace: "pre-wrap", lineHeight: 1.75 }}>
-          {text.slice(last, m.index)}
-        </span>
-      );
-    }
-    const lang = m[1] || "code";
-    const raw = m[2].trim();
-    parts.push(
-      <div
-        key={key++}
-        style={{
-          margin: "12px 0",
-          borderRadius: 10,
-          overflow: "hidden",
-          border: "1px solid rgba(124,58,237,0.35)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "4px 12px",
-            background: "rgba(124,58,237,0.18)",
-            fontSize: 11,
-            fontFamily: "monospace",
-            color: "#a78bfa",
-          }}
-        >
-          <span>{lang}</span>
-          <button
-            onClick={() => navigator.clipboard.writeText(raw)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#a78bfa",
-              cursor: "pointer",
-              fontSize: 11,
-              padding: 0,
-            }}
-          >
-            copy
-          </button>
-        </div>
-        <pre
-          style={{
-            margin: 0,
-            padding: "14px 16px",
-            background: "rgba(0,0,0,0.5)",
-            overflowX: "auto",
-            fontSize: 12.5,
-            lineHeight: 1.65,
-            fontFamily:
-              "'JetBrains Mono','Fira Code','Cascadia Code',monospace",
-          }}
-        >
-          <code dangerouslySetInnerHTML={{ __html: highlight(raw) }} />
-        </pre>
-      </div>
-    );
-    last = m.index + m[0].length;
-  }
+  text = text.replace(/`([^`\n]+)`/g, '<code class="ic">$1</code>');
+  text = text.replace(/\*\*([^*]+)\*\*/g, '<strong class="bd">$1</strong>');
+  text = text.replace(/\*([^*\n]+)\*/g, '<em class="it">$1</em>');
+  text = text.replace(/^### (.+)$/gm, '<h3 class="h3">$1</h3>');
+  text = text.replace(/^## (.+)$/gm, '<h2 class="h2">$1</h2>');
+  text = text.replace(/^# (.+)$/gm, '<h1 class="h1">$1</h1>');
+  text = text.replace(/^---+$/gm, '<hr class="hr">');
+  text = text.replace(/^[\-\*\+] (.+)$/gm, '<li class="li">$1</li>');
+  text = text.replace(/(<li[\s\S]*?<\/li>(\n|$))+/g, '<ul class="ul">$&</ul>');
 
-  if (last < text.length) {
-    parts.push(
-      <span key={key++} style={{ whiteSpace: "pre-wrap", lineHeight: 1.75 }}>
-        {text.slice(last)}
-      </span>
-    );
-  }
-  return parts;
+  text = text
+    .split(/\n{2,}/)
+    .map(p => {
+      const trimmed = p.trim();
+      if (!trimmed) return '';
+      if (/^<(h[123]|ul|div|pre|hr)/.test(trimmed)) return trimmed;
+      return `<p class="p">${trimmed.replace(/\n/g, '<br>')}</p>`;
+    })
+    .join('');
+
+  return text;
 }
 
-// ─── Suggestions ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// WEBGL INIT
+// ─────────────────────────────────────────────
 
-const SUGGESTIONS = [
-  "Explain React Server Components vs Client Components",
-  "Write a WebSocket server in Bun.js with rooms",
-  "Best rate limiting strategies for a Next.js API",
-  "Debug: useEffect runs twice in React 19",
-  "Design a multi-tenant SaaS database schema",
-  "Stream LLM responses with Vercel AI SDK v6",
+function initGL(canvas: HTMLCanvasElement, intensityRef: { current: number }) {
+  const gl = canvas.getContext('webgl', { alpha: false });
+  if (!gl) return null;
+
+  function compileShader(type: number, src: string) {
+    const s = gl!.createShader(type)!;
+    gl!.shaderSource(s, src);
+    gl!.compileShader(s);
+    return s;
+  }
+
+  const vs = compileShader(gl.VERTEX_SHADER, VERT);
+  const fs = compileShader(gl.FRAGMENT_SHADER, FRAG);
+  const prog = gl.createProgram()!;
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const uT = gl.getUniformLocation(prog, 'u_t');
+  const uRes = gl.getUniformLocation(prog, 'u_res');
+  const uInt = gl.getUniformLocation(prog, 'u_intensity');
+
+  const resize = () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  };
+  resize();
+  window.addEventListener('resize', resize);
+
+  let raf: number;
+  const t0 = performance.now();
+  let currentIntensity = 0;
+
+  const render = () => {
+    const t = (performance.now() - t0) / 1000;
+    currentIntensity += (intensityRef.current - currentIntensity) * 0.05;
+    gl.uniform1f(uT, t);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uInt, currentIntensity);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    raf = requestAnimationFrame(render);
+  };
+  render();
+
+  return () => {
+    cancelAnimationFrame(raf);
+    window.removeEventListener('resize', resize);
+  };
+}
+
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+
+const WELCOME: Message = {
+  role: 'assistant',
+  id: 'init',
+  content: `## Welcome to ORACLE
+
+I am your **omniscient developer intelligence** — built at the intersection of code, knowledge, and cosmic awareness.
+
+I can help you with:
+- Architecture decisions & system design
+- Code generation, review, and debugging
+- Performance optimization & best practices
+- AI/ML, DevOps, databases, APIs, security
+- **Real-time web search** for the latest docs and news
+
+Enable **Web Search** for live context. Enable **Voice** to hear my responses.
+
+*What would you like to know?*`,
+};
+
+const EXAMPLES = [
+  'Explain TCP vs UDP with code examples',
+  'Write a rate limiter in TypeScript',
+  'How does React concurrent mode work?',
+  'PostgreSQL query optimization best practices',
+  'Implement JWT auth from scratch in Node.js',
 ];
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────
 
-export default function OraclePage() {
+export default function SurprisePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isLoadingRef = useRef(false);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const intensityRef = useRef(0);
 
-  const [voiceOn, setVoiceOn] = useState(false);
-  const [searchOn, setSearchOn] = useState(false);
-  const searchOnRef = useRef(false);
+  const [messages, setMessages] = useState<Message[]>([WELCOME]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [searchEnabled, setSearchEnabled] = useState(false);
+  const [status, setStatus] = useState('');
+  const [mounted, setMounted] = useState(false);
+  const [showHints, setShowHints] = useState(true);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } =
-    useChat({
-      api: "/api/surprise/chat",
-      body: { useSearch: searchOnRef.current },
-      onFinish: async (msg) => {
-        if (voiceOnRef.current) await speakText(msg.content);
-      },
-    });
-
-  const voiceOnRef = useRef(false);
-
-  isLoadingRef.current = isLoading;
-
-  // WebGL — shader intensity increases when AI is thinking
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    return initWebGL(canvas, () => (isLoadingRef.current ? 1.0 : 0.0)) ?? undefined;
+    setMounted(true);
+    if (!canvasRef.current) return;
+    return initGL(canvasRef.current, intensityRef) ?? undefined;
   }, []);
 
-  // Scroll to latest message
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+    intensityRef.current = isLoading ? 1 : 0;
+  }, [isLoading]);
 
-  const speakText = useCallback(async (text: string) => {
+  useEffect(() => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
+  }, [messages, status]);
+
+  const playVoice = useCallback(async (text: string) => {
     try {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      const res = await fetch("/api/surprise/voice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+      const res = await fetch('/api/surprise/voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       });
       if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => URL.revokeObjectURL(url);
-      await audio.play();
-    } catch {
-      // Voice is optional — fail gracefully
-    }
+      const ab = await res.arrayBuffer();
+      const buf = await audioCtxRef.current.decodeAudioData(ab);
+      const src = audioCtxRef.current.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioCtxRef.current.destination);
+      src.start();
+    } catch { /* fail silently */ }
   }, []);
 
-  const toggleVoice = () => {
-    const next = !voiceOn;
-    voiceOnRef.current = next;
-    setVoiceOn(next);
-  };
+  const sendMessage = useCallback(async (overrideInput?: string) => {
+    const trimmed = (overrideInput ?? input).trim();
+    if (!trimmed || isLoading) return;
 
-  const toggleSearch = () => {
-    const next = !searchOn;
-    searchOnRef.current = next;
-    setSearchOn(next);
-  };
+    setShowHints(false);
+    const userMsg: Message = { role: 'user', content: trimmed, id: `u-${Date.now()}` };
+    const aId = `a-${Date.now() + 1}`;
+    const aMsg: Message = { role: 'assistant', content: '', id: aId };
+
+    setMessages(prev => [...prev, userMsg, aMsg]);
+    setInput('');
+    setIsLoading(true);
+
+    if (inputRef.current) inputRef.current.style.height = 'auto';
+
+    try {
+      let searchContext = '';
+      if (searchEnabled) {
+        setStatus('Searching the web...');
+        try {
+          const sr = await fetch('/api/surprise/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: trimmed }),
+          });
+          if (sr.ok) {
+            const { results } = await sr.json();
+            if (results?.length) {
+              searchContext = (results as { title: string; snippet: string; url: string }[])
+                .map(r => `**${r.title}**\n${r.snippet}\nSource: ${r.url}`)
+                .join('\n\n');
+            }
+          }
+        } catch { /* search failed silently */ }
+      }
+
+      setStatus('Consulting ORACLE...');
+
+      const history = [...messages, userMsg].map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const res = await fetch('/api/surprise/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history, searchContext: searchContext || undefined }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      setStatus('');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullText += decoder.decode(value, { stream: true });
+        setMessages(prev =>
+          prev.map(m => (m.id === aId ? { ...m, content: fullText } : m))
+        );
+      }
+
+      if (voiceEnabled && fullText) {
+        setStatus('Speaking...');
+        await playVoice(fullText);
+      }
+    } catch {
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === aId
+            ? { ...m, content: '*The Oracle is momentarily unavailable. Please try again.*' }
+            : m
+        )
+      );
+    } finally {
+      setIsLoading(false);
+      setStatus('');
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [input, isLoading, messages, searchEnabled, voiceEnabled, playVoice]);
+
+  const handleKey = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }, [sendMessage]);
+
+  const clearChat = useCallback(() => {
+    setMessages([{ ...WELCOME, id: `init-${Date.now()}` }]);
+    setShowHints(true);
+  }, []);
+
+  if (!mounted) return <div style={{ background: '#020008', width: '100vw', height: '100vh' }} />;
 
   return (
-    <>
-      <style>{`
-        @keyframes oracle-pulse {
-          0%,100% { box-shadow:0 0 28px rgba(124,58,237,0.45),0 0 56px rgba(6,182,212,0.2); transform:scale(1); }
-          50%      { box-shadow:0 0 48px rgba(124,58,237,0.75),0 0 96px rgba(6,182,212,0.38); transform:scale(1.07); }
-        }
-        @keyframes oracle-bounce {
-          0%,100% { transform:translateY(0); opacity:0.55; }
-          50%      { transform:translateY(-5px); opacity:1; }
-        }
-        @keyframes oracle-fade {
-          from { opacity:0; transform:translateY(6px); }
-          to   { opacity:1; transform:translateY(0); }
-        }
-        .o-scroll::-webkit-scrollbar { width:3px; }
-        .o-scroll::-webkit-scrollbar-track { background:transparent; }
-        .o-scroll::-webkit-scrollbar-thumb { background:rgba(124,58,237,0.4); border-radius:2px; }
-        .o-scroll { scrollbar-width:thin; scrollbar-color:rgba(124,58,237,0.4) transparent; }
-        .o-sug { transition:all 0.17s; }
-        .o-sug:hover { background:rgba(124,58,237,0.18)!important; border-color:rgba(124,58,237,0.4)!important; color:rgba(255,255,255,0.95)!important; }
-        .o-send { transition:all 0.17s; }
-        .o-send:hover:not(:disabled) { opacity:0.85; transform:translateY(-1px); }
-        .o-tog  { transition:all 0.17s; }
-        .o-tog:hover { opacity:0.82; }
-        .o-msg  { animation:oracle-fade 0.22s ease forwards; }
-      `}</style>
+    <div style={{
+      width: '100vw', height: '100dvh', overflow: 'hidden',
+      background: '#020008',
+      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+      position: 'relative',
+    }}>
+      {/* WebGL Canvas */}
+      <canvas ref={canvasRef} style={{
+        position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 0,
+      }} />
 
-      {/* WebGL canvas */}
-      <canvas
-        ref={canvasRef}
-        style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0 }}
-      />
+      {/* Radial overlay */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none',
+        background: 'radial-gradient(ellipse 90% 80% at 50% 50%, transparent 30%, rgba(2,0,8,0.55) 100%)',
+      }} />
 
-      {/* Radial dark overlay — keeps text readable */}
-      <div
-        style={{
-          position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none",
-          background:
-            "radial-gradient(ellipse 90% 90% at 50% 50%, rgba(3,3,8,0.42) 0%, rgba(3,3,8,0.80) 100%)",
-        }}
-      />
+      {/* Main layout */}
+      <div style={{
+        position: 'relative', zIndex: 2,
+        width: '100%', height: '100dvh',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        padding: '20px 16px 16px', boxSizing: 'border-box', gap: 12,
+      }}>
 
-      {/* Subtle CRT scanlines */}
-      <div
-        style={{
-          position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", opacity: 0.022,
-          backgroundImage:
-            "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,1) 2px,rgba(255,255,255,1) 3px)",
-        }}
-      />
-
-      {/* UI */}
-      <div
-        style={{
-          position: "fixed", inset: 0, zIndex: 10,
-          display: "flex", flexDirection: "column",
-          maxWidth: 840, margin: "0 auto",
-          padding: "18px 16px 12px",
-          fontFamily: "'Inter',system-ui,sans-serif",
-          color: "rgba(255,255,255,0.92)",
-        }}
-      >
-        {/* ── Header ── */}
-        <div style={{ textAlign: "center", marginBottom: 16, flexShrink: 0 }}>
-          <div
-            style={{
-              width: 50, height: 50, borderRadius: "50%", margin: "0 auto 10px",
-              background:
-                "radial-gradient(circle at 35% 35%, rgba(200,150,255,0.9), rgba(6,182,212,0.5) 55%, transparent 80%)",
-              animation: "oracle-pulse 3.5s ease-in-out infinite",
-              border: "1px solid rgba(124,58,237,0.5)",
-            }}
-          />
-          <h1
-            style={{
-              margin: 0, lineHeight: 1, fontSize: "clamp(1.9rem,5vw,3rem)",
-              fontWeight: 900, letterSpacing: "-0.04em",
-              background: "linear-gradient(135deg,#c4b5fd 0%,#06b6d4 52%,#fbbf24 100%)",
-              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            }}
-          >
-            ŌRACLE
-          </h1>
-          <p
-            style={{
-              margin: "5px 0 0", fontSize: 10, color: "rgba(255,255,255,0.28)",
-              letterSpacing: "0.22em", textTransform: "uppercase",
-            }}
-          >
-            AI Developer Intelligence &nbsp;·&nbsp;
-            {voiceOn && "🎙 Voice"}
-            {voiceOn && searchOn && " · "}
-            {searchOn && "🔍 Live Search"}
-            {!voiceOn && !searchOn && "Claude · ElevenLabs · Brave Search"}
-          </p>
+        {/* Header */}
+        <div style={{ textAlign: 'center', flexShrink: 0 }}>
+          <div style={{
+            fontSize: 'clamp(32px, 6vw, 52px)', fontWeight: 900,
+            letterSpacing: '-2px', lineHeight: 1,
+            background: 'linear-gradient(135deg, #a855f7 0%, #06b6d4 50%, #f59e0b 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            marginBottom: 4,
+            filter: isLoading ? 'drop-shadow(0 0 20px rgba(168,85,247,0.6))' : 'none',
+            transition: 'filter 0.5s ease',
+            animation: isLoading ? 'glow-pulse 1.5s ease-in-out infinite' : 'none',
+          }}>
+            ORACLE
+          </div>
+          <div style={{
+            color: '#374151', fontSize: 10, letterSpacing: 4,
+            textTransform: 'uppercase', fontWeight: 500,
+          }}>
+            Developer Intelligence &middot; ool.dev/surprise
+          </div>
         </div>
 
-        {/* ── Messages ── */}
-        <div
-          className="o-scroll"
-          style={{ flex: 1, overflowY: "auto", padding: "0 2px" }}
-        >
-          {messages.length === 0 && (
-            <div style={{ paddingTop: 4, paddingBottom: 10 }}>
-              <p
-                style={{
-                  textAlign: "center", color: "rgba(255,255,255,0.36)",
-                  fontSize: 13.5, marginBottom: 18,
-                }}
-              >
-                Ask me anything, developer.
-              </p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))",
-                  gap: 8,
-                }}
-              >
-                {SUGGESTIONS.map((s, i) => (
-                  <button
-                    key={i}
-                    className="o-sug"
-                    onClick={() => setInput(s)}
-                    style={{
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 10, padding: "10px 13px",
-                      color: "rgba(255,255,255,0.58)", fontSize: 12,
-                      cursor: "pointer", textAlign: "left",
-                      backdropFilter: "blur(12px)", lineHeight: 1.45,
+        {/* Chat window */}
+        <div style={{
+          width: '100%', maxWidth: 800, flex: 1, minHeight: 0,
+          display: 'flex', flexDirection: 'column',
+          background: 'rgba(8, 4, 22, 0.75)',
+          backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)',
+          borderRadius: 20,
+          border: `1px solid ${isLoading ? 'rgba(168,85,247,0.45)' : 'rgba(168,85,247,0.2)'}`,
+          boxShadow: isLoading
+            ? '0 0 80px rgba(168,85,247,0.12), 0 0 160px rgba(6,182,212,0.05), inset 0 1px 0 rgba(255,255,255,0.07)'
+            : '0 0 40px rgba(168,85,247,0.06), inset 0 1px 0 rgba(255,255,255,0.05)',
+          transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
+          overflow: 'hidden',
+        }}>
+
+          {/* Messages */}
+          <div ref={messagesRef} style={{
+            flex: 1, overflowY: 'auto',
+            padding: '20px 20px 8px',
+            display: 'flex', flexDirection: 'column', gap: 18,
+          }}>
+            {messages.map((msg, idx) => {
+              const isStreaming = isLoading && idx === messages.length - 1 && msg.role === 'assistant';
+              return (
+                <div key={msg.id} style={{
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  animation: 'slide-in 0.3s ease',
+                }}>
+                  <div style={{
+                    fontSize: 9, letterSpacing: 2.5, textTransform: 'uppercase',
+                    fontWeight: 700, marginBottom: 5,
+                    color: msg.role === 'user' ? '#f59e0b' : '#a855f7',
+                  }}>
+                    {msg.role === 'user' ? 'YOU' : 'ORACLE'}
+                  </div>
+                  <div style={{
+                    maxWidth: '90%', padding: '11px 15px',
+                    borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
+                    background: msg.role === 'user'
+                      ? 'linear-gradient(135deg, rgba(168,85,247,0.28), rgba(6,182,212,0.18))'
+                      : 'rgba(255,255,255,0.035)',
+                    border: msg.role === 'user'
+                      ? '1px solid rgba(168,85,247,0.38)'
+                      : '1px solid rgba(255,255,255,0.06)',
+                    color: '#dde4f0', fontSize: 14, lineHeight: 1.72,
+                    wordBreak: 'break-word',
+                  }}>
+                    {msg.role === 'user' ? (
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                    ) : isStreaming ? (
+                      <span style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                        {msg.content || ''}
+                        <span style={{ animation: 'cursor-blink 1s infinite', color: '#a855f7', fontWeight: 700 }}>|</span>
+                      </span>
+                    ) : (
+                      <div
+                        className="oracle-md"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {status && (
+              <div style={{
+                textAlign: 'center', color: '#4b5563', fontSize: 12,
+                animation: 'fade-in 0.3s ease', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+                <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>&#9711;</span>
+                {status}
+              </div>
+            )}
+
+            {showHints && messages.length === 1 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 4 }}>
+                {EXAMPLES.map(ex => (
+                  <button key={ex} onClick={() => sendMessage(ex)} style={{
+                    padding: '6px 12px', borderRadius: 20, fontSize: 12,
+                    background: 'rgba(168,85,247,0.08)',
+                    border: '1px solid rgba(168,85,247,0.2)',
+                    color: '#6b7280', cursor: 'pointer',
+                    transition: 'all 0.2s', textAlign: 'left', fontFamily: 'inherit',
+                  }}
+                    onMouseEnter={e => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.background = 'rgba(168,85,247,0.18)';
+                      el.style.color = '#c084fc';
+                      el.style.borderColor = 'rgba(168,85,247,0.4)';
+                    }}
+                    onMouseLeave={e => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.background = 'rgba(168,85,247,0.08)';
+                      el.style.color = '#6b7280';
+                      el.style.borderColor = 'rgba(168,85,247,0.2)';
                     }}
                   >
-                    {s}
+                    {ex}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className="o-msg"
-              style={{
-                marginBottom: 14, display: "flex",
-                flexDirection: msg.role === "user" ? "row-reverse" : "row",
-                alignItems: "flex-start", gap: 9,
-              }}
-            >
-              {/* Avatar */}
-              <div
-                style={{
-                  width: 27, height: 27, borderRadius: "50%", flexShrink: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10.5, fontWeight: 800,
-                  background:
-                    msg.role === "user"
-                      ? "linear-gradient(135deg,#4f46e5,#7c3aed)"
-                      : "linear-gradient(135deg,#0891b2,#7c3aed)",
-                  boxShadow:
-                    msg.role === "assistant"
-                      ? "0 0 14px rgba(124,58,237,0.6)"
-                      : "none",
-                }}
-              >
-                {msg.role === "user" ? "Y" : "Ō"}
-              </div>
+          {/* Divider */}
+          <div style={{ height: 1, background: 'rgba(168,85,247,0.12)', flexShrink: 0 }} />
 
-              {/* Bubble */}
-              <div
-                style={{
-                  maxWidth: "82%", fontSize: 13.5,
-                  background:
-                    msg.role === "user"
-                      ? "rgba(79,70,229,0.2)"
-                      : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${
-                    msg.role === "user"
-                      ? "rgba(124,58,237,0.35)"
-                      : "rgba(255,255,255,0.07)"
-                  }`,
-                  borderRadius:
-                    msg.role === "user"
-                      ? "16px 4px 16px 16px"
-                      : "4px 16px 16px 16px",
-                  padding: "10px 14px",
-                  backdropFilter: "blur(16px)",
-                  color: "rgba(255,255,255,0.9)",
-                }}
-              >
-                {renderContent(msg.content)}
-              </div>
-            </div>
-          ))}
+          {/* Toolbar */}
+          <div style={{ padding: '8px 16px 4px', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+            <button onClick={() => setSearchEnabled(v => !v)} style={{
+              padding: '4px 10px', borderRadius: 8, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${searchEnabled ? 'rgba(6,182,212,0.55)' : 'rgba(255,255,255,0.09)'}`,
+              background: searchEnabled ? 'rgba(6,182,212,0.14)' : 'transparent',
+              color: searchEnabled ? '#06b6d4' : '#4b5563',
+              transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 500,
+            }}>
+              {searchEnabled ? '🔍 Search ON' : '🔍 Search OFF'}
+            </button>
 
-          {/* Thinking dots */}
-          {isLoading && (
-            <div
-              className="o-msg"
-              style={{ display: "flex", gap: 9, alignItems: "center", marginBottom: 14 }}
-            >
-              <div
-                style={{
-                  width: 27, height: 27, borderRadius: "50%", flexShrink: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10.5, fontWeight: 800,
-                  background: "linear-gradient(135deg,#0891b2,#7c3aed)",
-                  boxShadow: "0 0 18px rgba(124,58,237,0.8)",
-                }}
-              >
-                Ō
-              </div>
-              <div
-                style={{
-                  display: "flex", gap: 5, padding: "12px 16px",
-                  background: "rgba(255,255,255,0.04)",
-                  borderRadius: "4px 16px 16px 16px",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  backdropFilter: "blur(16px)",
-                }}
-              >
-                {[0, 0.2, 0.4].map((delay, j) => (
-                  <div
-                    key={j}
-                    style={{
-                      width: 6, height: 6, borderRadius: "50%", background: "#a78bfa",
-                      animation: `oracle-bounce 1.1s ease-in-out ${delay}s infinite`,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+            <button onClick={() => setVoiceEnabled(v => !v)} style={{
+              padding: '4px 10px', borderRadius: 8, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${voiceEnabled ? 'rgba(168,85,247,0.55)' : 'rgba(255,255,255,0.09)'}`,
+              background: voiceEnabled ? 'rgba(168,85,247,0.14)' : 'transparent',
+              color: voiceEnabled ? '#a855f7' : '#4b5563',
+              transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 500,
+            }}>
+              {voiceEnabled ? '🎙 Voice ON' : '🎙 Voice OFF'}
+            </button>
 
-          <div ref={bottomRef} />
-        </div>
-
-        {/* ── Input panel ── */}
-        <form ref={formRef} onSubmit={handleSubmit} style={{ flexShrink: 0, marginTop: 10 }}>
-          <div
-            style={{
-              background: "rgba(8,6,18,0.78)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 16, padding: "12px 14px",
-              backdropFilter: "blur(28px)",
-              boxShadow:
-                "0 0 0 1px rgba(124,58,237,0.12), 0 8px 40px rgba(0,0,0,0.5)",
+            <button onClick={clearChat} style={{
+              marginLeft: 'auto', padding: '4px 10px', borderRadius: 8, fontSize: 11, fontFamily: 'inherit',
+              border: '1px solid rgba(255,255,255,0.08)', background: 'transparent',
+              color: '#374151', cursor: 'pointer', transition: 'color 0.2s',
             }}
-          >
+              onMouseEnter={e => (e.currentTarget.style.color = '#6b7280')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#374151')}
+            >
+              Clear
+            </button>
+          </div>
+
+          {/* Input */}
+          <div style={{ padding: '6px 16px 14px', display: 'flex', gap: 10, alignItems: 'flex-end', flexShrink: 0 }}>
             <textarea
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  formRef.current?.requestSubmit();
-                }
-              }}
-              placeholder="Ask anything... (Enter to send · Shift+Enter for newline)"
-              rows={1}
+              ref={inputRef} value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder="Ask the Oracle anything..."
+              disabled={isLoading} rows={1} autoFocus
               style={{
-                width: "100%", background: "transparent", border: "none",
-                outline: "none", color: "rgba(255,255,255,0.9)", fontSize: 14,
-                resize: "none", fontFamily: "inherit", lineHeight: 1.6,
-                minHeight: 44, maxHeight: 130,
+                flex: 1, resize: 'none',
+                background: 'rgba(255,255,255,0.045)',
+                border: '1px solid rgba(168,85,247,0.22)', borderRadius: 12,
+                padding: '10px 14px', color: '#e2e8f0', fontSize: 14,
+                outline: 'none', fontFamily: 'inherit', lineHeight: 1.55,
+                maxHeight: 140, overflowY: 'auto', transition: 'border-color 0.2s',
+              }}
+              onFocus={e => { e.target.style.borderColor = 'rgba(168,85,247,0.55)'; }}
+              onBlur={e => { e.target.style.borderColor = 'rgba(168,85,247,0.22)'; }}
+              onInput={e => {
+                const t = e.currentTarget;
+                t.style.height = 'auto';
+                t.style.height = Math.min(t.scrollHeight, 140) + 'px';
               }}
             />
-            <div
+            <button
+              onClick={() => sendMessage()}
+              disabled={isLoading || !input.trim()}
               style={{
-                display: "flex", justifyContent: "space-between",
-                alignItems: "center", marginTop: 6,
+                width: 42, height: 42, borderRadius: 12, flexShrink: 0, border: 'none',
+                background: isLoading || !input.trim()
+                  ? 'rgba(168,85,247,0.12)'
+                  : 'linear-gradient(135deg, #7c3aed 0%, #0891b2 100%)',
+                cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'white', fontSize: 18, transition: 'all 0.2s', fontFamily: 'inherit',
+                boxShadow: isLoading || !input.trim() ? 'none' : '0 4px 20px rgba(124,58,237,0.4)',
               }}
+              onMouseEnter={e => { if (!isLoading && input.trim()) (e.currentTarget as HTMLElement).style.transform = 'scale(1.07)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
             >
-              {/* Toggles */}
-              <div style={{ display: "flex", gap: 6 }}>
-                <button
-                  type="button"
-                  className="o-tog"
-                  onClick={toggleVoice}
-                  title="ElevenLabs voice synthesis"
-                  style={{
-                    background: voiceOn
-                      ? "rgba(124,58,237,0.25)"
-                      : "rgba(255,255,255,0.05)",
-                    border: `1px solid ${voiceOn ? "rgba(124,58,237,0.55)" : "rgba(255,255,255,0.1)"}`,
-                    borderRadius: 8, padding: "5px 11px", cursor: "pointer",
-                    color: voiceOn ? "#c4b5fd" : "rgba(255,255,255,0.35)",
-                    fontSize: 11.5, display: "flex", alignItems: "center", gap: 4,
-                  }}
-                >
-                  🎙 Voice
-                </button>
-                <button
-                  type="button"
-                  className="o-tog"
-                  onClick={toggleSearch}
-                  title="Live web search via Brave"
-                  style={{
-                    background: searchOn
-                      ? "rgba(6,182,212,0.18)"
-                      : "rgba(255,255,255,0.05)",
-                    border: `1px solid ${searchOn ? "rgba(6,182,212,0.5)" : "rgba(255,255,255,0.1)"}`,
-                    borderRadius: 8, padding: "5px 11px", cursor: "pointer",
-                    color: searchOn ? "#06b6d4" : "rgba(255,255,255,0.35)",
-                    fontSize: 11.5, display: "flex", alignItems: "center", gap: 4,
-                  }}
-                >
-                  🔍 Web
-                </button>
-              </div>
-
-              {/* Send */}
-              <button
-                type="submit"
-                className="o-send"
-                disabled={isLoading || !input.trim()}
-                style={{
-                  background: "linear-gradient(135deg,#7c3aed,#0891b2)",
-                  border: "none", borderRadius: 10, padding: "8px 22px",
-                  color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                  opacity: input.trim() && !isLoading ? 1 : 0.32,
-                  letterSpacing: "0.02em",
-                  boxShadow: "0 4px 16px rgba(124,58,237,0.45)",
-                }}
-              >
-                {isLoading ? "Thinking…" : "Send ↵"}
-              </button>
-            </div>
+              {isLoading ? 'o' : '↑'}
+            </button>
           </div>
-        </form>
+
+          <div style={{
+            textAlign: 'center', paddingBottom: 10, flexShrink: 0,
+            color: '#1f2937', fontSize: 10, letterSpacing: 1.5,
+          }}>
+            ENTER to send &nbsp;&middot;&nbsp; SHIFT+ENTER for newline
+          </div>
+        </div>
 
         {/* Footer */}
-        <div
-          style={{
-            textAlign: "center", marginTop: 7, fontSize: 9.5,
-            color: "rgba(255,255,255,0.17)", letterSpacing: "0.13em",
-          }}
-        >
-          ŌRACLE · OOL.DEV/SURPRISE · PIXAN.AI · CLAUDE SONNET 4.6 · ELEVENLABS · BRAVE
+        <div style={{ color: '#1a1f2e', fontSize: 10, letterSpacing: 2.5, textTransform: 'uppercase', flexShrink: 0 }}>
+          Claude &middot; Vercel AI Gateway &middot; ElevenLabs &middot; Brave Search
         </div>
       </div>
-    </>
+
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @keyframes slide-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes glow-pulse {
+          0%, 100% { filter: drop-shadow(0 0 14px rgba(168,85,247,0.5)); }
+          50%       { filter: drop-shadow(0 0 28px rgba(6,182,212,0.7)); }
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.28); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(168,85,247,0.5); }
+
+        .oracle-md .p   { margin: 0.45em 0; }
+        .oracle-md .h1  { font-size: 1.35em; font-weight: 800; color: #c084fc; margin: 0.9em 0 0.35em; }
+        .oracle-md .h2  { font-size: 1.18em; font-weight: 700; color: #a78bfa; margin: 0.8em 0 0.3em; }
+        .oracle-md .h3  { font-size: 1.05em; font-weight: 700; color: #818cf8; margin: 0.7em 0 0.25em; }
+        .oracle-md .hr  { border: none; border-top: 1px solid rgba(168,85,247,0.2); margin: 0.8em 0; }
+        .oracle-md .ul  { padding-left: 1.3em; margin: 0.4em 0; }
+        .oracle-md .li  { margin: 0.25em 0; }
+        .oracle-md .bd  { color: #c084fc; font-weight: 700; }
+        .oracle-md .it  { color: #67e8f9; font-style: italic; }
+        .oracle-md .ic  { background: rgba(168,85,247,0.18); color: #c084fc; padding: 1px 6px; border-radius: 4px; font-size: 0.87em; font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; }
+        .oracle-md .cb  { background: rgba(0,0,0,0.55); border: 1px solid rgba(168,85,247,0.18); border-radius: 10px; overflow: hidden; margin: 0.8em 0; }
+        .oracle-md .cb-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: rgba(168,85,247,0.09); border-bottom: 1px solid rgba(168,85,247,0.13); }
+        .oracle-md .cb-lang { font-size: 9px; color: #7c3aed; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
+        .oracle-md .cb-copy { font-size: 10px; color: #4b5563; background: none; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 2px 8px; cursor: pointer; transition: color 0.2s; font-family: inherit; }
+        .oracle-md .cb-copy:hover { color: #e2e8f0; }
+        .oracle-md .cb-pre { padding: 14px; overflow-x: auto; font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; font-size: 13px; line-height: 1.65; color: #e2e8f0; }
+        .sh-kw  { color: #c084fc; font-weight: 600; }
+        .sh-str { color: #86efac; }
+        .sh-num { color: #fb923c; }
+        .sh-fn  { color: #60a5fa; }
+        .sh-cmt { color: #4b5563; font-style: italic; }
+      `}</style>
+    </div>
   );
 }
